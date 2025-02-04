@@ -23,12 +23,13 @@ class MetricsCallback(Callback):
         self.learning_rates = []
         self.current_epoch = 0
         self.emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
+        self.emotion_f1s = {emotion: [] for emotion in self.emotion_labels}
 
     def on_train_epoch_end(self, trainer, pl_module):
         metrics = trainer.callback_metrics
         train_f1 = metrics.get('train_f1')
         val_f1 = metrics.get('val_f1')
-        train_loss = metrics.get('train_loss_epoch')
+        train_loss = metrics.get('train_loss_epoch')  # Changed from train_loss to train_loss_epoch
         val_loss = metrics.get('val_loss')
         
         # Store metrics only at epoch end
@@ -47,7 +48,6 @@ class MetricsCallback(Callback):
                 pl_module.optimizers().param_groups[0]['lr']
             )
         
-        # Print epoch summary
         print(f"\nEpoch {self.current_epoch} Summary:")
         if train_f1 is not None:
             print(f"Train F1: {train_f1.item():.4f}")
@@ -67,11 +67,19 @@ class MetricsCallback(Callback):
         print("-" * 50)
         self.current_epoch += 1
 
+    def on_validation_epoch_end(self, trainer, pl_module):
+        metrics = trainer.callback_metrics
+        val_loss = metrics.get('val_loss')
+        val_f1 = metrics.get('val_f1')
+        
+        if val_loss is not None:
+            self.val_losses.append(val_loss.item())
+        if val_f1 is not None:
+            self.val_f1s.append(val_f1.item())
+
     def plot_metrics(self):
         os.makedirs('plots', exist_ok=True)
-        
-        # Create epochs array based on actual data points
-        epochs = list(range(len(self.train_losses)))
+        epochs = range(1, len(self.train_losses) + 1)
         
         # Plot main metrics
         plt.figure(figsize=(15, 10))
@@ -81,9 +89,7 @@ class MetricsCallback(Callback):
         if self.train_losses:
             plt.plot(epochs, self.train_losses, label='Train Loss')
         if self.val_losses:
-            # Ensure val_losses has same length as epochs
-            val_epochs = epochs[:len(self.val_losses)]
-            plt.plot(val_epochs, self.val_losses, label='Val Loss')
+            plt.plot(epochs, self.val_losses, label='Val Loss')
         plt.title('Loss Evolution')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
@@ -95,9 +101,7 @@ class MetricsCallback(Callback):
         if self.train_f1s:
             plt.plot(epochs, self.train_f1s, label='Train F1')
         if self.val_f1s:
-            # Ensure val_f1s has same length as epochs
-            val_epochs = epochs[:len(self.val_f1s)]
-            plt.plot(val_epochs, self.val_f1s, label='Val F1')
+            plt.plot(epochs, self.val_f1s, label='Val F1')
         plt.title('F1 Score Evolution')
         plt.xlabel('Epoch')
         plt.ylabel('F1 Score')
@@ -107,8 +111,7 @@ class MetricsCallback(Callback):
         # Learning rate plot
         if self.learning_rates:
             plt.subplot(2, 2, 3)
-            lr_epochs = epochs[:len(self.learning_rates)]
-            plt.plot(lr_epochs, self.learning_rates)
+            plt.plot(epochs, self.learning_rates)
             plt.title('Learning Rate Evolution')
             plt.xlabel('Epoch')
             plt.ylabel('Learning Rate')
@@ -140,7 +143,7 @@ def train():
     
     # Initialize model
     model = ImprovedEmotionClassifier(
-        learning_rate=5e-6,  # Lower base learning rate
+        learning_rate=1e-5,
         warmup_steps=100,
         class_weights=data_module.class_weights
     )
@@ -164,7 +167,7 @@ def train():
         LearningRateMonitor(logging_interval='step'),
         StochasticWeightAveraging(
             swa_epoch_start=0.8,
-            swa_lrs=2.5e-6  # Half of base learning rate
+            swa_lrs=1e-5/2
         ),
         MetricsCallback()
     ]

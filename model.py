@@ -9,7 +9,7 @@ import numpy as np
 class ImprovedEmotionClassifier(pl.LightningModule):
     def __init__(
         self,
-        learning_rate: float = 5e-6,  # Lower base learning rate
+        learning_rate: float = 1e-5,
         warmup_steps: int = 100,
         class_weights: torch.Tensor = None,
         hidden_size: int = 1024,
@@ -210,7 +210,7 @@ class ImprovedEmotionClassifier(pl.LightningModule):
             optimizer_grouped_parameters.append({
                 "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
                 "weight_decay": 0.01,
-                "lr": self.hparams.learning_rate * 0.1  # 5e-7 for frozen layers
+                "lr": self.hparams.learning_rate * 0.1
             })
             optimizer_grouped_parameters.append({
                 "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
@@ -218,12 +218,12 @@ class ImprovedEmotionClassifier(pl.LightningModule):
                 "lr": self.hparams.learning_rate * 0.1
             })
         
-        # Base learning rate for top layers
+        # Higher learning rate for top layers
         for layer in self.roberta.encoder.layer[16:]:
             optimizer_grouped_parameters.append({
                 "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
                 "weight_decay": 0.01,
-                "lr": self.hparams.learning_rate  # 5e-6 for top layers
+                "lr": self.hparams.learning_rate
             })
             optimizer_grouped_parameters.append({
                 "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
@@ -231,19 +231,19 @@ class ImprovedEmotionClassifier(pl.LightningModule):
                 "lr": self.hparams.learning_rate
             })
         
-        # Higher learning rate for emotion-specific layers
+        # Highest learning rate for emotion-specific layers
         optimizer_grouped_parameters.extend([
             {
                 "params": [p for n, p in self.named_parameters() 
                           if "emotion" in n and not any(nd in n for nd in no_decay)],
                 "weight_decay": 0.01,
-                "lr": self.hparams.learning_rate * 2.0  # 1e-5 for emotion layers
+                "lr": self.hparams.learning_rate * 1.5
             },
             {
                 "params": [p for n, p in self.named_parameters() 
                           if "emotion" in n and any(nd in n for nd in no_decay)],
                 "weight_decay": 0.0,
-                "lr": self.hparams.learning_rate * 2.0
+                "lr": self.hparams.learning_rate * 1.5
             }
         ])
         
