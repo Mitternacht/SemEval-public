@@ -93,7 +93,7 @@ Given a text snippet, the system predicts which emotions are present. This is a 
 - Attention pattern visualization
 - Per-emotion contribution analysis
 
-## Hardware Requirements
+## Hardware
 - Apple M1 Max with 32GB RAM
 - MPS acceleration support
 
