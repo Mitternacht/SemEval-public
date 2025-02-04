@@ -4,116 +4,172 @@ import pytorch_lightning as pl
 from transformers import RobertaModel
 from torchmetrics.classification import MultilabelF1Score
 import torch.nn.functional as F
+import numpy as np
 
-class EmotionClassifier(pl.LightningModule):
+class ImprovedEmotionClassifier(pl.LightningModule):
     def __init__(
         self,
-        learning_rate: float = 1e-5,
+        learning_rate: float = 5e-6,  # Lower base learning rate
         warmup_steps: int = 100,
         class_weights: torch.Tensor = None,
-        hidden_size: int = 1024,      
-        dropout_rate: float = 0.2,
-        num_attention_heads: int = 16
+        hidden_size: int = 1024,
+        dropout_rate: float = 0.3
     ):
         super().__init__()
         self.save_hyperparameters()
         
-        # TUNE:
-        # - 'roberta-base'
-        # - 'microsoft/deberta-v3-large'
-        self.roberta = RobertaModel.from_pretrained('roberta-large', add_pooling_layer=False)
-        
-        # Emotion-specific attention
-        self.emotion_attention = nn.MultiheadAttention(
-            hidden_size, 
-            num_attention_heads,
-            dropout=dropout_rate
+        # RoBERTa with gradient checkpointing
+        self.roberta = RobertaModel.from_pretrained(
+            'roberta-large',
+            add_pooling_layer=False,
+            use_cache=False
         )
+        self.roberta.gradient_checkpointing_enable()
         
-        # TUNE: Try different classifier architectures
-        self.classifier = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size//2),
-            nn.LayerNorm(hidden_size//2),
-            nn.Dropout(dropout_rate),
-            nn.GELU(),
-            nn.Linear(hidden_size//2, 5)
-        )
+        # Freeze embeddings and first 16 layers
+        self.freeze_layers(16)
+        
+        # Weighted layer pooling
+        self.layer_weights = nn.Parameter(torch.ones(24) / 24)
+        
+        # Emotion-specific attention per class
+        self.emotion_attentions = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_size, hidden_size // 2),
+                nn.Tanh(),
+                nn.Linear(hidden_size // 2, 1),
+                nn.Softmax(dim=1)
+            ) for _ in range(5)
+        ])
+        
+        # Emotion-specific classifiers
+        self.emotion_classifiers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_size, hidden_size // 2),
+                nn.LayerNorm(hidden_size // 2),
+                nn.Dropout(dropout_rate),
+                nn.GELU(),
+                nn.Linear(hidden_size // 2, 1)
+            ) for _ in range(5)
+        ])
+        
+        # Loss weights for dynamic balancing
+        self.register_buffer('loss_weights', torch.ones(5))
+        self.loss_history = {i: [] for i in range(5)}
         
         # Metrics
-        self.train_f1 = MultilabelF1Score(
-            num_labels=5, 
-            threshold=0.5,
-            validate_args=True,
-            average='macro'
-        )
-        self.val_f1 = MultilabelF1Score(
-            num_labels=5, 
-            threshold=0.5,
-            validate_args=True,
-            average='macro'
-        )
-        self.test_f1 = MultilabelF1Score(
-            num_labels=5, 
-            threshold=0.5,
-            validate_args=True,
-            average='macro'
-        )
-        
+        self.train_f1 = MultilabelF1Score(num_labels=5)
+        self.val_f1 = MultilabelF1Score(num_labels=5)
+        self.test_f1 = MultilabelF1Score(num_labels=5)
         self.class_weights = class_weights
 
+    def freeze_layers(self, num_layers):
+        # Freeze embeddings
+        for param in self.roberta.embeddings.parameters():
+            param.requires_grad = False
+            
+        # Freeze first num_layers
+        for layer in self.roberta.encoder.layer[:num_layers]:
+            for param in layer.parameters():
+                param.requires_grad = False
+
     def forward(self, input_ids, attention_mask):
-        # RoBERTa encoding
-        outputs = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
-        sequence_output = outputs.last_hidden_state
+        # Ensure correct types
+        input_ids = input_ids.long()
+        attention_mask = attention_mask.long()
         
-        # Emotion-specific attention
-        attended_output, _ = self.emotion_attention(
-            sequence_output.permute(1, 0, 2),
-            sequence_output.permute(1, 0, 2),
-            sequence_output.permute(1, 0, 2),
-            key_padding_mask=~attention_mask.bool()
+        # Get all hidden states
+        outputs = self.roberta(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True
         )
-        attended_output = attended_output.permute(1, 0, 2)
         
-        # Pool the attended outputs
-        pooled_output = torch.mean(attended_output, dim=1)
+        # Weighted sum of last 8 layers
+        last_hidden_states = torch.stack(outputs.hidden_states[-8:], dim=-1)
+        layer_weights = F.softmax(self.layer_weights[-8:], dim=0)
+        weighted_hs = (last_hidden_states * layer_weights).sum(dim=-1)
         
-        # Classification
-        logits = self.classifier(pooled_output)
-        return logits
+        # Apply emotion-specific attention and classification
+        logits = []
+        for emotion_attn, emotion_clf in zip(self.emotion_attentions, self.emotion_classifiers):
+            # Compute attention weights
+            attn_weights = emotion_attn(weighted_hs)
+            
+            # Apply attention
+            emotion_context = torch.bmm(
+                attn_weights.transpose(1, 2),
+                weighted_hs
+            ).squeeze(1)
+            
+            # Classify
+            emotion_logit = emotion_clf(emotion_context)
+            logits.append(emotion_logit)
+        
+        return torch.cat(logits, dim=1)
+
+    def _compute_loss(self, logits, labels):
+        # Label smoothing
+        smoothing = 0.1
+        labels = labels * (1 - smoothing) + 0.5 * smoothing
+        
+        # Compute per-emotion losses
+        losses = []
+        for i in range(5):
+            emotion_loss = F.binary_cross_entropy_with_logits(
+                logits[:, i],
+                labels[:, i],
+                pos_weight=self.class_weights[i].to(self.device) if self.class_weights is not None else None
+            )
+            losses.append(emotion_loss)
+            
+            # Update loss history
+            self.loss_history[i].append(emotion_loss.item())
+            if len(self.loss_history[i]) > 100:  # Keep last 100 steps
+                self.loss_history[i].pop(0)
+        
+        # Update loss weights using moving averages
+        with torch.no_grad():
+            avg_losses = torch.tensor([sum(hist) / len(hist) for hist in self.loss_history.values()])
+            max_loss = avg_losses.max()
+            self.loss_weights = max_loss / avg_losses
+        
+        # Compute weighted average loss
+        total_loss = sum(loss * weight for loss, weight in zip(losses, self.loss_weights)) / len(losses)
+        
+        return total_loss
 
     def training_step(self, batch, batch_idx):
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
+        input_ids = batch['input_ids'].long()
+        attention_mask = batch['attention_mask'].long()
         labels = batch['labels'].float()
         
+        # Store original labels for metrics
+        original_labels = labels.clone()
+        
+        # Mixup augmentation
+        if torch.rand(1) < 0.5:  # 50% chance of mixup
+            lambda_mix = torch.distributions.beta.Beta(0.2, 0.2).sample()
+            index = torch.randperm(input_ids.size(0))
+            
+            mixed_input_ids = input_ids[index]
+            mixed_attention_mask = attention_mask[index]
+            mixed_labels = labels[index]
+            
+            # Mix the inputs and labels
+            input_ids = input_ids  # Keep original input_ids (discrete tokens)
+            attention_mask = attention_mask | mixed_attention_mask  # Union of attention masks
+            labels = lambda_mix * labels + (1 - lambda_mix) * mixed_labels  # Mixed labels for loss
+        
         logits = self(input_ids, attention_mask)
+        loss = self._compute_loss(logits, labels)
         
-        # Add epsilon to prevent log(0)
-        eps = 1e-7
-        preds = torch.sigmoid(logits.float())
-        preds = torch.clamp(preds, eps, 1 - eps)
-        
-        loss = F.binary_cross_entropy_with_logits(
-            logits.float(), 
-            labels,
-            pos_weight=self.class_weights.to(self.device) if self.class_weights is not None else None,
-            reduction='mean'
-        )
-        
-        # Update F1 metric
-        self.train_f1.update(preds, labels)
-        
-        # Log metrics
+        # Log metrics using original binary labels
+        preds = torch.sigmoid(logits)
+        self.train_f1.update(preds, original_labels)  # Use original binary labels for F1
         self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
         
         return loss
-
-    def on_train_epoch_end(self):
-        # Compute F1 at epoch end
-        train_f1 = self.train_f1.compute()
-        self.log('train_f1', train_f1, prog_bar=True)
-        self.train_f1.reset()
 
     def validation_step(self, batch, batch_idx):
         input_ids = batch['input_ids']
@@ -121,56 +177,85 @@ class EmotionClassifier(pl.LightningModule):
         labels = batch['labels'].float()
         
         logits = self(input_ids, attention_mask)
-        
-        eps = 1e-7
-        preds = torch.sigmoid(logits.float())
-        preds = torch.clamp(preds, eps, 1 - eps)
-        
-        loss = F.binary_cross_entropy_with_logits(
-            logits.float(), 
-            labels,
-            reduction='mean'
-        )
+        loss = F.binary_cross_entropy_with_logits(logits, labels, reduction='mean')
         
         # Update F1 metric
+        preds = torch.sigmoid(logits)
         self.val_f1.update(preds, labels)
         
-        # Log loss
+        # Log metrics
         self.log('val_loss', loss, prog_bar=True, sync_dist=True)
         
         return loss
 
+    def on_train_epoch_end(self):
+        train_f1 = self.train_f1.compute()
+        self.log('train_f1', train_f1, prog_bar=True)
+        self.train_f1.reset()
+
     def on_validation_epoch_end(self):
-        # Compute F1 at epoch end
         val_f1 = self.val_f1.compute()
         self.log('val_f1', val_f1, prog_bar=True, sync_dist=True)
         self.val_f1.reset()
 
-    def test_step(self, batch, batch_idx):
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
-        labels = batch['labels']
-        
-        logits = self(input_ids, attention_mask)
-        preds = torch.sigmoid(logits)
-        f1 = self.test_f1(preds, labels)
-        
-        self.log('test_f1', f1)
-        
-        return f1
-
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=0.1
-        )
+        # Differential learning rates
+        no_decay = ['bias', 'LayerNorm.weight']
+        
+        # Parameters with different learning rates and weight decay
+        optimizer_grouped_parameters = []
+        
+        # Lower learning rate for frozen layers (if you want to fine-tune them later)
+        for layer in self.roberta.encoder.layer[:16]:
+            optimizer_grouped_parameters.append({
+                "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": 0.01,
+                "lr": self.hparams.learning_rate * 0.1  # 5e-7 for frozen layers
+            })
+            optimizer_grouped_parameters.append({
+                "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+                "lr": self.hparams.learning_rate * 0.1
+            })
+        
+        # Base learning rate for top layers
+        for layer in self.roberta.encoder.layer[16:]:
+            optimizer_grouped_parameters.append({
+                "params": [p for n, p in layer.named_parameters() if not any(nd in n for nd in no_decay)],
+                "weight_decay": 0.01,
+                "lr": self.hparams.learning_rate  # 5e-6 for top layers
+            })
+            optimizer_grouped_parameters.append({
+                "params": [p for n, p in layer.named_parameters() if any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+                "lr": self.hparams.learning_rate
+            })
+        
+        # Higher learning rate for emotion-specific layers
+        optimizer_grouped_parameters.extend([
+            {
+                "params": [p for n, p in self.named_parameters() 
+                          if "emotion" in n and not any(nd in n for nd in no_decay)],
+                "weight_decay": 0.01,
+                "lr": self.hparams.learning_rate * 2.0  # 1e-5 for emotion layers
+            },
+            {
+                "params": [p for n, p in self.named_parameters() 
+                          if "emotion" in n and any(nd in n for nd in no_decay)],
+                "weight_decay": 0.0,
+                "lr": self.hparams.learning_rate * 2.0
+            }
+        ])
+        
+        optimizer = torch.optim.AdamW(optimizer_grouped_parameters)
         
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            max_lr=self.hparams.learning_rate,
+            max_lr=[group["lr"] for group in optimizer_grouped_parameters],
             total_steps=self.trainer.estimated_stepping_batches,
-            pct_start=0.1
+            pct_start=0.1,
+            anneal_strategy='cos',
+            cycle_momentum=False
         )
         
         return {

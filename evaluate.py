@@ -1,6 +1,6 @@
 import torch
 import pandas as pd
-from model import EmotionClassifier
+from model import ImprovedEmotionClassifier
 from transformers import RobertaTokenizer
 import numpy as np
 from sklearn.metrics import classification_report, confusion_matrix
@@ -11,8 +11,10 @@ from data import EmotionDataModule
 import argparse
 import os
 from pathlib import Path
+from typing import Dict, List, Tuple
+import torch.nn.functional as F
 
-def find_best_checkpoint(checkpoint_dir='checkpoints'):
+def find_best_checkpoint(checkpoint_dir='checkpoints') -> str:
     """Find the checkpoint with the highest validation F1 score."""
     checkpoints = list(Path(checkpoint_dir).glob('emotion-*.ckpt'))
     if not checkpoints:
@@ -29,94 +31,20 @@ def find_best_checkpoint(checkpoint_dir='checkpoints'):
     if not checkpoint_scores:
         raise ValueError("No valid checkpoints found")
     
-    # Get checkpoint with highest F1
     best_score, best_checkpoint = max(checkpoint_scores)
     print(f"Using checkpoint: {best_checkpoint} (F1: {best_score:.4f})")
     return str(best_checkpoint)
 
-def evaluate_model(model_path, test_file):
-    # Load model on CPU first
-    model = EmotionClassifier.load_from_checkpoint(model_path, map_location='cpu')
-    
-    # Then move to MPS if available
-    if torch.backends.mps.is_available():
-        model = model.to('mps')
-    
+def analyze_predictions(model: ImprovedEmotionClassifier, 
+                     data_module: EmotionDataModule,
+                     threshold: float = 0.5) -> Dict:
+    """Detailed analysis of model predictions."""
     model.eval()
-
-    # Load tokenizer
-    tokenizer = RobertaTokenizer.from_pretrained('roberta-large')
-
-    # Load test data
-    test_data = pd.read_csv(test_file)
-    emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
-
-    # Predictions
-    predictions = []
-    true_labels = []
-
-    with torch.no_grad():
-        for _, row in test_data.iterrows():
-            # Tokenize
-            encoding = tokenizer(
-                str(row['text']),
-                add_special_tokens=True,
-                max_length=128,
-                padding='max_length',
-                truncation=True,
-                return_tensors='pt'
-            )
-
-            # Move to device
-            input_ids = encoding['input_ids'].to('mps')
-            attention_mask = encoding['attention_mask'].to('mps')
-
-            # Get prediction
-            logits = model(input_ids, attention_mask)
-            probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).cpu().numpy()
-            predictions.append(preds[0])
-            true_labels.append([row[label] for label in emotion_labels])
-
-    # Convert to numpy arrays
-    predictions = np.array(predictions)
-    true_labels = np.array(true_labels)
-
-    # Print classification report
-    print("\nClassification Report:")
-    print(classification_report(
-        true_labels, 
-        predictions,
-        target_names=emotion_labels
-    ))
-
-    # SHAP Analysis
-    explainer = shap.Explainer(
-        model,
-        tokenizer,
-        output_names=emotion_labels
-    )
-    
-    # Get SHAP values for a subset of test data
-    sample_texts = test_data['text'].iloc[:100].tolist()
-    shap_values = explainer(sample_texts)
-
-    # Save SHAP plots
-    shap.summary_plot(
-        shap_values, 
-        sample_texts,
-        class_names=emotion_labels,
-        show=False
-    )
-    plt.savefig('shap_summary.png')
-    plt.close()
-
-def analyze_predictions(model, data_module, threshold=0.5):
-    """Analyze model predictions with detailed metrics."""
-    model.eval()
-    device = model.device  # Get the model's current device
+    device = model.device
     all_preds = []
     all_labels = []
+    all_logits = []
+    emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
     
     # Get predictions
     val_loader = data_module.val_dataloader()
@@ -129,44 +57,47 @@ def analyze_predictions(model, data_module, threshold=0.5):
             logits = model(input_ids, attention_mask)
             preds = torch.sigmoid(logits)
             
-            all_preds.append(preds.cpu())  # Move to CPU before appending
+            all_preds.append(preds.cpu())
             all_labels.append(labels)
+            all_logits.append(logits.cpu())
     
     # Concatenate all predictions and labels
     all_preds = torch.cat(all_preds, dim=0)
     all_labels = torch.cat(all_labels, dim=0)
+    all_logits = torch.cat(all_logits, dim=0)
     
-    # Convert to binary predictions using threshold
+    # Convert to binary predictions
     binary_preds = (all_preds > threshold).float()
     
-    # Get metrics for each emotion
-    emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
+    # Create output directory
+    os.makedirs('analysis', exist_ok=True)
     
-    print("\nDetailed Analysis:")
-    print("-" * 50)
-    
-    # Plot confusion matrices
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    # Analyze per emotion
+    results = {}
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
     axes = axes.ravel()
     
     for idx, emotion in enumerate(emotion_labels):
-        # Get confusion matrix
+        # Confusion matrix
         cm = confusion_matrix(all_labels[:, idx], binary_preds[:, idx])
+        tn, fp, fn, tp = cm.ravel()
         
         # Calculate metrics
-        tn, fp, fn, tp = cm.ravel()
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
         
-        print(f"\n{emotion.upper()}:")
-        print(f"True Positives: {tp}")
-        print(f"False Positives: {fp}")
-        print(f"False Negatives: {fn}")
-        print(f"True Negatives: {tn}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall: {recall:.4f}")
-        print(f"F1 Score: {f1:.4f}")
+        # Store results
+        results[emotion] = {
+            'precision': precision,
+            'recall': recall,
+            'f1': f1,
+            'confusion_matrix': cm,
+            'true_positives': tp,
+            'false_positives': fp,
+            'false_negatives': fn,
+            'true_negatives': tn
+        }
         
         # Plot confusion matrix
         sns.heatmap(cm, annot=True, fmt='d', ax=axes[idx])
@@ -175,18 +106,32 @@ def analyze_predictions(model, data_module, threshold=0.5):
         axes[idx].set_ylabel('Actual')
     
     plt.tight_layout()
-    plt.savefig('plots/confusion_matrices.png')
+    plt.savefig('analysis/confusion_matrices.png')
     plt.close()
     
     # Threshold analysis
-    thresholds = np.arange(0.1, 1.0, 0.1)
+    analyze_thresholds(all_preds, all_labels, emotion_labels)
+    
+    # Calibration analysis
+    analyze_calibration(all_preds, all_labels, emotion_labels)
+    
+    # Error analysis
+    analyze_errors(all_preds, all_labels, all_logits, emotion_labels)
+    
+    return results
+
+def analyze_thresholds(preds: torch.Tensor, 
+                      labels: torch.Tensor,
+                      emotion_labels: List[str],
+                      thresholds: np.ndarray = np.arange(0.1, 1.0, 0.05)):
+    """Analyze the effect of different prediction thresholds."""
     threshold_results = {emotion: {'precision': [], 'recall': [], 'f1': []} 
                         for emotion in emotion_labels}
     
     for thresh in thresholds:
-        binary_preds = (all_preds > thresh).float()
+        binary_preds = (preds > thresh).float()
         for idx, emotion in enumerate(emotion_labels):
-            cm = confusion_matrix(all_labels[:, idx], binary_preds[:, idx])
+            cm = confusion_matrix(labels[:, idx], binary_preds[:, idx])
             tn, fp, fn, tp = cm.ravel()
             
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0
@@ -198,7 +143,7 @@ def analyze_predictions(model, data_module, threshold=0.5):
             threshold_results[emotion]['f1'].append(f1)
     
     # Plot threshold analysis
-    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
     axes = axes.ravel()
     
     for idx, emotion in enumerate(emotion_labels):
@@ -212,10 +157,103 @@ def analyze_predictions(model, data_module, threshold=0.5):
         axes[idx].grid(True)
     
     plt.tight_layout()
-    plt.savefig('plots/threshold_analysis.png')
+    plt.savefig('analysis/threshold_analysis.png')
+    plt.close()
+
+def analyze_calibration(preds: torch.Tensor,
+                       labels: torch.Tensor,
+                       emotion_labels: List[str],
+                       n_bins: int = 10):
+    """Analyze model calibration."""
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+    axes = axes.ravel()
+    
+    for idx, emotion in enumerate(emotion_labels):
+        pred_probs = preds[:, idx].numpy()
+        true_labels = labels[:, idx].numpy()
+        
+        # Calculate calibration curve
+        bin_edges = np.linspace(0, 1, n_bins + 1)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+        bin_accuracies = []
+        bin_confidences = []
+        bin_counts = []
+        
+        for low, high in zip(bin_edges[:-1], bin_edges[1:]):
+            mask = (pred_probs >= low) & (pred_probs < high)
+            if mask.sum() > 0:
+                bin_acc = true_labels[mask].mean()
+                bin_conf = pred_probs[mask].mean()
+                bin_accuracies.append(bin_acc)
+                bin_confidences.append(bin_conf)
+                bin_counts.append(mask.sum())
+        
+        # Plot calibration
+        axes[idx].plot([0, 1], [0, 1], 'r--', label='Perfect calibration')
+        axes[idx].plot(bin_confidences, bin_accuracies, 'b-', label='Model')
+        
+        # Add histogram of predictions
+        ax2 = axes[idx].twinx()
+        ax2.hist(pred_probs, bins=n_bins, alpha=0.3, color='gray')
+        
+        axes[idx].set_title(f'{emotion.capitalize()} Calibration')
+        axes[idx].set_xlabel('Predicted Probability')
+        axes[idx].set_ylabel('True Probability')
+        axes[idx].legend()
+        axes[idx].grid(True)
+    
+    plt.tight_layout()
+    plt.savefig('analysis/calibration.png')
+    plt.close()
+
+def analyze_errors(preds: torch.Tensor,
+                  labels: torch.Tensor,
+                  logits: torch.Tensor,
+                  emotion_labels: List[str]):
+    """Analyze error patterns."""
+    binary_preds = (preds > 0.5).float()
+    
+    # Analyze co-occurrence in errors
+    error_mask = (binary_preds != labels)
+    error_cooccurrence = torch.zeros((len(emotion_labels), len(emotion_labels)))
+    
+    for i in range(len(emotion_labels)):
+        for j in range(len(emotion_labels)):
+            error_cooccurrence[i, j] = ((error_mask[:, i] == 1) & 
+                                      (error_mask[:, j] == 1)).sum()
+    
+    # Plot error co-occurrence
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(error_cooccurrence.numpy(),
+                annot=True,
+                fmt='d',
+                xticklabels=emotion_labels,
+                yticklabels=emotion_labels)
+    plt.title('Error Co-occurrence Matrix')
+    plt.tight_layout()
+    plt.savefig('analysis/error_cooccurrence.png')
     plt.close()
     
-    return threshold_results
+    # Analyze confidence distribution in errors vs correct predictions
+    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
+    axes = axes.ravel()
+    
+    for idx, emotion in enumerate(emotion_labels):
+        correct_conf = preds[binary_preds[:, idx] == labels[:, idx], idx]
+        error_conf = preds[binary_preds[:, idx] != labels[:, idx], idx]
+        
+        axes[idx].hist([correct_conf, error_conf], 
+                      label=['Correct', 'Error'],
+                      bins=20,
+                      alpha=0.6)
+        axes[idx].set_title(f'{emotion.capitalize()} Confidence Distribution')
+        axes[idx].set_xlabel('Confidence')
+        axes[idx].set_ylabel('Count')
+        axes[idx].legend()
+    
+    plt.tight_layout()
+    plt.savefig('analysis/confidence_distribution.png')
+    plt.close()
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate emotion detection model')
@@ -239,18 +277,36 @@ def main():
     data_module = EmotionDataModule(
         train_file=f'{args.data_dir}/train/eng.csv',
         val_file=f'{args.data_dir}/dev/eng.csv',
-        test_file=f'{args.data_dir}/test/eng.csv'
+        test_file=f'{args.data_dir}/test/eng.csv',
+        batch_size=16
     )
     data_module.setup()
 
-    # Load model on CPU first
-    model = EmotionClassifier.load_from_checkpoint(checkpoint_path, map_location='cpu')
+    # Load model
+    model = ImprovedEmotionClassifier.load_from_checkpoint(
+        checkpoint_path, 
+        map_location='cpu'
+    )
     
-    # Then move to MPS if available
     if torch.backends.mps.is_available():
         model = model.to('mps')
     
+    # Run analysis
     results = analyze_predictions(model, data_module)
+    
+    # Print summary
+    print("\nDetailed Analysis Results:")
+    print("-" * 50)
+    
+    for emotion, metrics in results.items():
+        print(f"\n{emotion.upper()}:")
+        print(f"True Positives: {metrics['true_positives']}")
+        print(f"False Positives: {metrics['false_positives']}")
+        print(f"False Negatives: {metrics['false_negatives']}")
+        print(f"True Negatives: {metrics['true_negatives']}")
+        print(f"Precision: {metrics['precision']:.4f}")
+        print(f"Recall: {metrics['recall']:.4f}")
+        print(f"F1 Score: {metrics['f1']:.4f}")
 
 if __name__ == "__main__":
     main()
