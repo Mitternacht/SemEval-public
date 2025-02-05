@@ -3,11 +3,15 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
 from transformers import RobertaTokenizer
+import numpy as np
+from typing import Optional, Dict, List, Tuple, Any
+import logging
+from torch.utils.data.sampler import WeightedRandomSampler
 from collections import Counter
 import matplotlib.pyplot as plt
 import seaborn as sns
-import numpy as np
-from typing import Optional, Dict
+from pathlib import Path
+import json
 
 class EmotionDataset(Dataset):
     def __init__(
@@ -15,31 +19,86 @@ class EmotionDataset(Dataset):
         data_file: str, 
         tokenizer: RobertaTokenizer, 
         max_length: int = 128,
-        augment: bool = False
+        augment: bool = False,
+        cache_dir: Optional[str] = None
     ):
-        self.data = pd.read_csv(data_file)
+        self.data_file = Path(data_file)
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.augment = augment
         self.emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
+        self.cache_dir = Path(cache_dir) if cache_dir else None
+        
+        # Load and preprocess data
+        self.data = self._load_data()
         
         # Check if this is a test set (no labels)
-        self.is_test = all(self.data[label].isna().all() for label in self.emotion_labels)
+        self.is_test = self._check_if_test()
         
-        # Create label counts for weighted sampling
+        # Create label information
         if not self.is_test:
-            self.label_counts = self._calculate_label_counts()
+            self.label_info = self._calculate_label_info()
             self.sample_weights = self._calculate_sample_weights()
+            
+        # Cache tokenized data if cache directory is provided
+        if self.cache_dir:
+            self._cache_tokenized_data()
 
-    def _calculate_label_counts(self) -> Dict[str, int]:
-        """Calculate the count of each label in the dataset."""
-        return {
-            label: self.data[label].sum()
-            for label in self.emotion_labels
+    def _load_data(self) -> pd.DataFrame:
+        """Load and validate data."""
+        try:
+            df = pd.read_csv(self.data_file)
+            
+            # Validate required columns
+            required_cols = ['text'] + (
+                self.emotion_labels if not self._check_if_test(df) else []
+            )
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                raise ValueError(f"Missing required columns: {missing_cols}")
+            
+            return df
+            
+        except Exception as e:
+            logging.error(f"Error loading data from {self.data_file}: {str(e)}")
+            raise
+
+    def _check_if_test(self, df: Optional[pd.DataFrame] = None) -> bool:
+        """Check if dataset is a test set."""
+        df = df if df is not None else self.data
+        return all(df[label].isna().all() for label in self.emotion_labels)
+
+    def _calculate_label_info(self) -> Dict[str, Any]:
+        """Calculate detailed label information."""
+        info = {
+            'counts': {},
+            'frequencies': {},
+            'co_occurrences': np.zeros((len(self.emotion_labels), len(self.emotion_labels))),
+            'label_combinations': Counter()
         }
+        
+        # Calculate basic counts and frequencies
+        for label in self.emotion_labels:
+            count = self.data[label].sum()
+            info['counts'][label] = count
+            info['frequencies'][label] = count / len(self.data)
+        
+        # Calculate co-occurrences
+        for i, label1 in enumerate(self.emotion_labels):
+            for j, label2 in enumerate(self.emotion_labels):
+                co_occur = ((self.data[label1] == 1) & (self.data[label2] == 1)).sum()
+                info['co_occurrences'][i, j] = co_occur
+        
+        # Calculate label combinations
+        label_combinations = self.data[self.emotion_labels].apply(
+            lambda x: tuple(x), axis=1
+        )
+        info['label_combinations'].update(label_combinations)
+        
+        return info
 
     def _calculate_sample_weights(self) -> torch.Tensor:
-        """Calculate weights for each sample based on its labels."""
+        """Calculate weights for balanced sampling."""
         weights = []
         total_samples = len(self.data)
         
@@ -50,7 +109,7 @@ class EmotionDataset(Dataset):
             ]
             # Weight based on inverse frequency of present labels
             weight = sum(
-                1.0 / self.label_counts[label] 
+                1.0 / self.label_info['counts'][label] 
                 for label, present in zip(self.emotion_labels, sample_labels) 
                 if present
             )
@@ -58,236 +117,202 @@ class EmotionDataset(Dataset):
         
         return torch.tensor(weights, dtype=torch.float)
 
-    def __len__(self):
+    def _cache_tokenized_data(self):
+        """Cache tokenized data to disk."""
+        cache_file = self.cache_dir / f"{self.data_file.stem}_tokenized.pt"
+        
+        if not cache_file.exists():
+            tokenized_data = []
+            for idx in range(len(self.data)):
+                encoding = self._tokenize_text(str(self.data.iloc[idx]['text']))
+                tokenized_data.append(encoding)
+            
+            # Save to cache
+            torch.save(tokenized_data, cache_file)
+            self.tokenized_cache = tokenized_data
+        else:
+            self.tokenized_cache = torch.load(cache_file)
+
+    def _tokenize_text(self, text: str) -> Dict[str, torch.Tensor]:
+        """Tokenize text with error handling."""
+        try:
+            encoding = self.tokenizer(
+                text,
+                add_special_tokens=True,
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            
+            return {
+                'input_ids': encoding['input_ids'].squeeze(),
+                'attention_mask': encoding['attention_mask'].squeeze()
+            }
+            
+        except Exception as e:
+            logging.error(f"Error tokenizing text: {text}\nError: {str(e)}")
+            # Return empty tensors as fallback
+            return {
+                'input_ids': torch.zeros(self.max_length, dtype=torch.long),
+                'attention_mask': torch.zeros(self.max_length, dtype=torch.long)
+            }
+
+    def _augment_text(self, text: str) -> str:
+        """Apply text augmentation techniques."""
+        words = text.split()
+        if len(words) <= 4:
+            return text
+            
+        augmentations = []
+        
+        # Random word dropout
+        if torch.rand(1) < 0.3:
+            dropout_idx = torch.randint(0, len(words), (len(words)//10,))
+            aug_words = [w for i, w in enumerate(words) if i not in dropout_idx]
+            augmentations.append(' '.join(aug_words))
+        
+        # Random word swap
+        if torch.rand(1) < 0.3:
+            aug_words = words.copy()
+            idx1, idx2 = torch.randint(0, len(words), (2,))
+            aug_words[idx1], aug_words[idx2] = aug_words[idx2], aug_words[idx1]
+            augmentations.append(' '.join(aug_words))
+        
+        # Return augmented text or original if no augmentations
+        return augmentations[-1] if augmentations else text
+
+    def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx):
-        text = str(self.data.iloc[idx]['text'])
-        
-        # Handle test set differently
-        if self.is_test:
-            labels = torch.zeros(len(self.emotion_labels), dtype=torch.float32)
-        else:
-            labels = torch.tensor(
-                [float(self.data.iloc[idx][label]) for label in self.emotion_labels], 
-                dtype=torch.float32
-            )
-        
-        # Apply augmentation during training (only for non-test data)
-        if self.augment and not self.is_test:
-            # Random word dropout
-            words = text.split()
-            if len(words) > 4:
-                dropout_idx = torch.randint(0, len(words), (len(words)//10,))
-                words = [w for i, w in enumerate(words) if i not in dropout_idx]
-                text = ' '.join(words)
+    def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
+        try:
+            # Get text and apply augmentation if needed
+            text = str(self.data.iloc[idx]['text'])
+            if self.augment and not self.is_test:
+                text = self._augment_text(text)
             
-            # Random word swap
-            if len(words) > 2 and torch.rand(1) < 0.3:
-                idx1, idx2 = torch.randint(0, len(words), (2,))
-                words[idx1], words[idx2] = words[idx2], words[idx1]
-                text = ' '.join(words)
-        
-        # Tokenization
-        encoding = self.tokenizer(
-            text,
-            add_special_tokens=True,
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        
-        return {
-            'input_ids': encoding['input_ids'].squeeze().long(),
-            'attention_mask': encoding['attention_mask'].squeeze().long(),
-            'labels': labels
-        }
+            # Get tokenized data from cache if available
+            if hasattr(self, 'tokenized_cache'):
+                encoding = self.tokenized_cache[idx]
+            else:
+                encoding = self._tokenize_text(text)
+            
+            # Prepare labels
+            if self.is_test:
+                labels = torch.zeros(len(self.emotion_labels), dtype=torch.float32)
+            else:
+                labels = torch.tensor(
+                    [float(self.data.iloc[idx][label]) for label in self.emotion_labels],
+                    dtype=torch.float32
+                )
+            
+            return {
+                'input_ids': encoding['input_ids'].long(),
+                'attention_mask': encoding['attention_mask'].long(),
+                'labels': labels
+            }
+            
+        except Exception as e:
+            logging.error(f"Error getting item {idx}: {str(e)}")
+            # Return empty tensors as fallback
+            return {
+                'input_ids': torch.zeros(self.max_length, dtype=torch.long),
+                'attention_mask': torch.zeros(self.max_length, dtype=torch.long),
+                'labels': torch.zeros(len(self.emotion_labels), dtype=torch.float32)
+            }
 
 class EmotionDataModule(pl.LightningDataModule):
-    def __init__(
-        self,
-        train_file: str,
-        val_file: str,
-        test_file: str,
-        batch_size: int = 8,
-        max_length: int = 128,
-        use_augmentation: bool = False,
-        aug_prob: float = 0.3,
-        num_workers: int = 4
-    ):
+    """PyTorch Lightning data module for emotion detection"""
+    
+    # Class variables for label columns
+    EMOTION_LABELS = ['anger', 'fear', 'joy', 'sadness', 'surprise']
+    
+    def __init__(self,
+                 data_dir: str = 'data',
+                 batch_size: int = 32,
+                 max_length: int = 128,
+                 num_workers: int = 4):
+        """
+        Initialize EmotionDataModule
+        
+        Args:
+            data_dir: Directory containing the dataset
+            batch_size: Batch size for dataloaders
+            max_length: Maximum sequence length for tokenizer
+            num_workers: Number of workers for dataloaders
+        """
         super().__init__()
-        self.train_file = train_file
-        self.val_file = val_file
-        self.test_file = test_file
+        self.data_dir = Path(data_dir)
         self.batch_size = batch_size
         self.max_length = max_length
-        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-large')
-        self.use_augmentation = use_augmentation
-        self.aug_prob = aug_prob
         self.num_workers = num_workers
         
-        # Add special tokens for emotions
+        # Initialize RobertaTokenizer with emotion-specific tokens
+        self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
         special_tokens = ['[ANGER]', '[FEAR]', '[JOY]', '[SADNESS]', '[SURPRISE]']
         self.tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
-
+        
+        # Update paths to use combined dataset
+        self.train_file = self.data_dir / 'combined/train.csv'
+        self.val_file = self.data_dir / 'combined/dev.csv'
+        
     def setup(self, stage: Optional[str] = None):
+        """Load and prepare data for given stage"""
         if stage == 'fit' or stage is None:
+            # Create train dataset
             self.train_dataset = EmotionDataset(
-                self.train_file, 
-                self.tokenizer, 
-                self.max_length,
-                augment=self.use_augmentation
-            )
-            self.val_dataset = EmotionDataset(
-                self.val_file, 
-                self.tokenizer, 
-                self.max_length
+                self.train_file,
+                self.tokenizer,
+                max_length=self.max_length,
+                augment=True  # Enable augmentation for training
             )
             
-            # Calculate class weights for loss function
-            train_data = pd.read_csv(self.train_file)
-            self.class_weights = self._calculate_class_weights(train_data)
-
-        if stage == 'test' or stage is None:
-            self.test_dataset = EmotionDataset(
-                self.test_file, 
-                self.tokenizer, 
-                self.max_length
+            # Create validation dataset
+            self.val_dataset = EmotionDataset(
+                self.val_file,
+                self.tokenizer,
+                max_length=self.max_length,
+                augment=False  # No augmentation for validation
             )
+            
+            logging.info(f"Loaded {len(self.train_dataset)} training samples")
+            logging.info(f"Loaded {len(self.val_dataset)} validation samples")
 
-    def _calculate_class_weights(self, data):
-        """Calculate balanced class weights."""
-        emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
-        pos_weights = []
-        
-        for label in emotion_labels:
-            neg_count = len(data[data[label] == 0])
-            pos_count = len(data[data[label] == 1])
-            # Square root scaling for softer weighting
-            weight = (neg_count / pos_count if pos_count > 0 else 1.0) ** 0.5
-            pos_weights.append(weight)
-        
-        return torch.tensor(pos_weights, dtype=torch.float)
+    def train_dataloader(self) -> DataLoader:
+        return self._create_dataloader(self.train_dataset, shuffle=True)
 
-    def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True,
-            drop_last=True  # Prevent issues with batch norm
-        )
+    def val_dataloader(self) -> DataLoader:
+        return self._create_dataloader(self.val_dataset, shuffle=False)
 
-    def val_dataloader(self):
-        return DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True
-        )
+    def test_dataloader(self) -> DataLoader:
+        return self._create_dataloader(self.test_dataset, shuffle=False)
 
-    def test_dataloader(self):
-        return DataLoader(
-            self.test_dataset,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            persistent_workers=True
-        )
+    def _create_dataloader(self, dataset: EmotionDataset, shuffle: bool) -> DataLoader:
+        """Create DataLoader with error handling and optimal settings."""
+        try:
+            return DataLoader(
+                dataset,
+                batch_size=self.batch_size,
+                shuffle=shuffle and not hasattr(dataset, 'sampler'),
+                num_workers=self.num_workers,
+                pin_memory=True,
+                persistent_workers=True if self.num_workers > 0 else False,
+                drop_last=shuffle,  # Only drop last batch during training
+                prefetch_factor=2 if self.num_workers > 0 else None,
+                worker_init_fn=lambda worker_id: np.random.seed(worker_id)
+            )
+        except Exception as e:
+            logging.error(f"Error creating DataLoader: {str(e)}")
+            raise
 
     def print_dataset_stats(self):
         """Print and visualize detailed dataset statistics."""
-        datasets = {
-            'Train': self.train_file,
-            'Validation': self.val_file,
-            'Test': self.test_file
-        }
-        
-        stats = {}
-        plt.figure(figsize=(20, 15))
-        
-        for idx, (name, file) in enumerate(datasets.items()):
-            data = pd.read_csv(file)
-            emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
+        if not hasattr(self, 'train_dataset'):
+            logging.warning("Dataset statistics not available. Call setup() first.")
+            return
             
-            # Basic statistics
-            total_samples = len(data)
-            label_counts = {label: data[label].sum() for label in emotion_labels}
-            label_percentages = {
-                label: (count/total_samples)*100 
-                for label, count in label_counts.items()
-            }
-            
-            # Multi-label distribution
-            label_combinations = data[emotion_labels].apply(
-                lambda x: tuple(x), axis=1
-            )
-            combination_counts = Counter(label_combinations)
-            
-            # Co-occurrence matrix
-            cooc_matrix = np.zeros((len(emotion_labels), len(emotion_labels)))
-            for i, em1 in enumerate(emotion_labels):
-                for j, em2 in enumerate(emotion_labels):
-                    cooc_matrix[i, j] = ((data[em1] == 1) & (data[em2] == 1)).sum()
-            
-            # Store statistics
-            stats[name] = {
-                'total_samples': total_samples,
-                'label_counts': label_counts,
-                'label_percentages': label_percentages,
-                'avg_labels_per_sample': data[emotion_labels].sum(axis=1).mean(),
-                'multi_label_dist': {
-                    f'{sum(combo)}_labels': count 
-                    for combo, count in combination_counts.items()
-                },
-                'cooc_matrix': cooc_matrix
-            }
-            
-            # Plot distribution
-            plt.subplot(3, 3, idx*3 + 1)
-            sns.barplot(
-                x=list(label_percentages.keys()),
-                y=list(label_percentages.values())
-            )
-            plt.title(f'{name} Set Distribution')
-            plt.xticks(rotation=45)
-            plt.ylabel('Percentage')
-            
-            # Plot label count distribution
-            plt.subplot(3, 3, idx*3 + 2)
-            labels_per_sample = data[emotion_labels].sum(axis=1)
-            sns.histplot(labels_per_sample, bins=range(7))
-            plt.title(f'{name} Labels per Sample')
-            plt.xlabel('Number of Labels')
-            plt.ylabel('Count')
-            
-            # Plot co-occurrence matrix
-            plt.subplot(3, 3, idx*3 + 3)
-            sns.heatmap(
-                cooc_matrix,
-                annot=True,
-                fmt='.0f',
-                xticklabels=emotion_labels,
-                yticklabels=emotion_labels
-            )
-            plt.title(f'{name} Co-occurrence Matrix')
-        
-        plt.tight_layout()
-        plt.savefig('plots/data_distribution.png')
-        plt.close()
-        
-        # Print statistics
-        for name, stat in stats.items():
-            print(f"\n{name} Set Statistics:")
-            print(f"Total samples: {stat['total_samples']}")
-            print("\nLabel distribution:")
-            for label, count in stat['label_counts'].items():
-                print(f"{label}: {count} ({stat['label_percentages'][label]:.2f}%)")
-            print(f"\nAverage labels per sample: {stat['avg_labels_per_sample']:.2f}")
-            print("\nMulti-label distribution:")
-            for n_labels, count in stat['multi_label_dist'].items():
-                print(f"{n_labels}: {count}")
+        try:
+            self._plot_dataset_statistics()
+        except Exception as e:
+            logging.error(f"Error plotting dataset statistics: {str(e)}")
