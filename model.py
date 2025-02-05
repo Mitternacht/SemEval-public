@@ -198,6 +198,37 @@ class ImprovedEmotionClassifier(pl.LightningModule):
         self.log('val_f1', val_f1, prog_bar=True, sync_dist=True)
         self.val_f1.reset()
 
+    def test_step(self, batch, batch_idx):
+        """Test step for model evaluation."""
+        input_ids = batch['input_ids']
+        attention_mask = batch['attention_mask']
+        labels = batch['labels'].float()
+        
+        logits = self(input_ids, attention_mask)
+        preds = torch.sigmoid(logits)
+        
+        # Only compute metrics if we have valid labels (non-zero tensors)
+        if labels.sum() > 0:
+            loss = F.binary_cross_entropy_with_logits(logits, labels, reduction='mean')
+            self.test_f1.update(preds, labels)
+            self.log('test_loss', loss, prog_bar=True, sync_dist=True)
+            return loss
+        
+        # For prediction-only mode (test set without labels)
+        return {
+            'predictions': preds,
+            'text_ids': batch['input_ids']  # Can be used to map back to original texts
+        }
+
+    def on_test_epoch_end(self):
+        """Called at the end of test to compute final metrics."""
+        test_f1 = self.test_f1.compute()
+        self.log('test_f1', test_f1, prog_bar=True, sync_dist=True)
+        self.test_f1.reset()
+        
+        print(f"\nTest Results:")
+        print(f"Test F1: {test_f1:.4f}")
+
     def configure_optimizers(self):
         # Differential learning rates
         no_decay = ['bias', 'LayerNorm.weight']

@@ -73,7 +73,22 @@ class EmotionDataset(Dataset):
                 dtype=torch.float32
             )
         
-        # Basic tokenization
+        # Apply augmentation during training (only for non-test data)
+        if self.augment and not self.is_test:
+            # Random word dropout
+            words = text.split()
+            if len(words) > 4:
+                dropout_idx = torch.randint(0, len(words), (len(words)//10,))
+                words = [w for i, w in enumerate(words) if i not in dropout_idx]
+                text = ' '.join(words)
+            
+            # Random word swap
+            if len(words) > 2 and torch.rand(1) < 0.3:
+                idx1, idx2 = torch.randint(0, len(words), (2,))
+                words[idx1], words[idx2] = words[idx2], words[idx1]
+                text = ' '.join(words)
+        
+        # Tokenization
         encoding = self.tokenizer(
             text,
             add_special_tokens=True,

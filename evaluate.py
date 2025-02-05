@@ -210,46 +210,57 @@ def analyze_errors(preds: torch.Tensor,
                   labels: torch.Tensor,
                   logits: torch.Tensor,
                   emotion_labels: List[str]):
-    """Analyze error patterns."""
+    """Analyze prediction errors and patterns."""
+    # Convert to binary predictions
     binary_preds = (preds > 0.5).float()
     
-    # Analyze co-occurrence in errors
-    error_mask = (binary_preds != labels)
+    # Calculate error matrix
+    errors = binary_preds != labels
     error_cooccurrence = torch.zeros((len(emotion_labels), len(emotion_labels)))
     
+    # Analyze error co-occurrence
     for i in range(len(emotion_labels)):
         for j in range(len(emotion_labels)):
-            error_cooccurrence[i, j] = ((error_mask[:, i] == 1) & 
-                                      (error_mask[:, j] == 1)).sum()
+            error_cooccurrence[i, j] = torch.sum(
+                (errors[:, i] == 1) & (errors[:, j] == 1)
+            ).float()
     
-    # Plot error co-occurrence
+    # Plot error co-occurrence matrix
     plt.figure(figsize=(10, 8))
-    sns.heatmap(error_cooccurrence.numpy(),
-                annot=True,
-                fmt='d',
-                xticklabels=emotion_labels,
-                yticklabels=emotion_labels)
+    sns.heatmap(
+        error_cooccurrence.numpy(),
+        annot=True,
+        fmt='.0f',  # Changed from 'd' to '.0f' for float formatting
+        xticklabels=emotion_labels,
+        yticklabels=emotion_labels
+    )
     plt.title('Error Co-occurrence Matrix')
     plt.tight_layout()
     plt.savefig('analysis/error_cooccurrence.png')
     plt.close()
     
-    # Analyze confidence distribution in errors vs correct predictions
-    fig, axes = plt.subplots(2, 3, figsize=(20, 12))
-    axes = axes.ravel()
-    
-    for idx, emotion in enumerate(emotion_labels):
-        correct_conf = preds[binary_preds[:, idx] == labels[:, idx], idx]
-        error_conf = preds[binary_preds[:, idx] != labels[:, idx], idx]
+    # Analyze confidence distribution for correct vs incorrect predictions
+    plt.figure(figsize=(15, 5))
+    for i, emotion in enumerate(emotion_labels):
+        plt.subplot(1, 5, i+1)
         
-        axes[idx].hist([correct_conf, error_conf], 
-                      label=['Correct', 'Error'],
-                      bins=20,
-                      alpha=0.6)
-        axes[idx].set_title(f'{emotion.capitalize()} Confidence Distribution')
-        axes[idx].set_xlabel('Confidence')
-        axes[idx].set_ylabel('Count')
-        axes[idx].legend()
+        # Get probabilities for this emotion
+        probs = torch.sigmoid(logits[:, i])
+        
+        # Separate correct and incorrect predictions
+        correct_probs = probs[binary_preds[:, i] == labels[:, i]]
+        incorrect_probs = probs[binary_preds[:, i] != labels[:, i]]
+        
+        # Plot distributions
+        if len(correct_probs) > 0:
+            sns.kdeplot(correct_probs.numpy(), label='Correct', color='green')
+        if len(incorrect_probs) > 0:
+            sns.kdeplot(incorrect_probs.numpy(), label='Incorrect', color='red')
+            
+        plt.title(f'{emotion} Confidence Distribution')
+        plt.xlabel('Prediction Probability')
+        plt.ylabel('Density')
+        plt.legend()
     
     plt.tight_layout()
     plt.savefig('analysis/confidence_distribution.png')

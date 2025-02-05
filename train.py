@@ -24,6 +24,8 @@ class MetricsCallback(Callback):
         self.current_epoch = 0
         self.emotion_labels = ['anger', 'fear', 'joy', 'sadness', 'surprise']
         self.emotion_f1s = {emotion: [] for emotion in self.emotion_labels}
+        self.steps = []
+        self.current_step = 0
 
     def on_train_epoch_end(self, trainer, pl_module):
         metrics = trainer.callback_metrics
@@ -72,24 +74,27 @@ class MetricsCallback(Callback):
         val_loss = metrics.get('val_loss')
         val_f1 = metrics.get('val_f1')
         
-        if val_loss is not None:
-            self.val_losses.append(val_loss.item())
-        if val_f1 is not None:
-            self.val_f1s.append(val_f1.item())
+        # Only store validation metrics at epoch end
+        if self.current_step == len(self.val_losses):
+            if val_loss is not None:
+                self.val_losses.append(val_loss.item())
+            if val_f1 is not None:
+                self.val_f1s.append(val_f1.item())
+            self.steps.append(self.current_step)
+        self.current_step += 1
 
     def plot_metrics(self):
         os.makedirs('plots', exist_ok=True)
-        epochs = range(1, len(self.train_losses) + 1)
         
-        # Plot main metrics
+        # Use steps for x-axis instead of epochs
         plt.figure(figsize=(15, 10))
         
         # Loss plot
         plt.subplot(2, 2, 1)
         if self.train_losses:
-            plt.plot(epochs, self.train_losses, label='Train Loss')
+            plt.plot(range(len(self.train_losses)), self.train_losses, label='Train Loss')
         if self.val_losses:
-            plt.plot(epochs, self.val_losses, label='Val Loss')
+            plt.plot(range(len(self.val_losses)), self.val_losses, label='Val Loss')
         plt.title('Loss Evolution')
         plt.xlabel('Epoch')
         plt.ylabel('Loss')
@@ -99,9 +104,9 @@ class MetricsCallback(Callback):
         # F1 plot
         plt.subplot(2, 2, 2)
         if self.train_f1s:
-            plt.plot(epochs, self.train_f1s, label='Train F1')
+            plt.plot(range(len(self.train_f1s)), self.train_f1s, label='Train F1')
         if self.val_f1s:
-            plt.plot(epochs, self.val_f1s, label='Val F1')
+            plt.plot(range(len(self.val_f1s)), self.val_f1s, label='Val F1')
         plt.title('F1 Score Evolution')
         plt.xlabel('Epoch')
         plt.ylabel('F1 Score')
@@ -111,7 +116,7 @@ class MetricsCallback(Callback):
         # Learning rate plot
         if self.learning_rates:
             plt.subplot(2, 2, 3)
-            plt.plot(epochs, self.learning_rates)
+            plt.plot(range(len(self.learning_rates)), self.learning_rates)
             plt.title('Learning Rate Evolution')
             plt.xlabel('Epoch')
             plt.ylabel('Learning Rate')
@@ -160,9 +165,13 @@ def train():
         ),
         EarlyStopping(
             monitor='val_f1',
-            patience=5,
+            patience=10,           # Increased from 5 to 10
             mode='max',
-            min_delta=0.001
+            min_delta=0.001,      # Keep small improvement threshold
+            check_finite=True,    # Ensure we're not getting NaN values
+            check_on_train_epoch_end=False,  # Only check on validation
+            stopping_threshold=0.95,  # Stop if we reach 95% F1
+            divergence_threshold=0.0  # Don't stop for divergence
         ),
         LearningRateMonitor(logging_interval='step'),
         StochasticWeightAveraging(
@@ -179,12 +188,12 @@ def train():
     trainer = pl.Trainer(
         accelerator='mps',
         devices=1,
-        max_epochs=20,
+        max_epochs=30,  # Increased from 20
         callbacks=callbacks,
         logger=logger,
-        gradient_clip_val=0.5,
-        accumulate_grad_batches=4,  # Effective batch size = 8 * 4 = 32
-        val_check_interval=0.25,  # Validate 4 times per epoch
+        gradient_clip_val=1.0,  # Increased from 0.5
+        accumulate_grad_batches=8,  # Increased from 4
+        val_check_interval=0.5,  # Reduced from 0.25 for stability
         precision=32,
         deterministic=True,
         enable_progress_bar=True,
