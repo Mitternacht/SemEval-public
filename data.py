@@ -229,7 +229,7 @@ class EmotionDataModule(pl.LightningDataModule):
     EMOTION_LABELS = ['anger', 'fear', 'joy', 'sadness', 'surprise']
     
     def __init__(self,
-                 data_dir: str = 'data',
+                 data_path: str,  # Changed from data_dir to data_path
                  batch_size: int = 32,
                  max_length: int = 128,
                  num_workers: int = 4):
@@ -237,13 +237,13 @@ class EmotionDataModule(pl.LightningDataModule):
         Initialize EmotionDataModule
         
         Args:
-            data_dir: Directory containing the dataset
+            data_path: Direct path to CSV file
             batch_size: Batch size for dataloaders
             max_length: Maximum sequence length for tokenizer
             num_workers: Number of workers for dataloaders
         """
         super().__init__()
-        self.data_dir = Path(data_dir)
+        self.data_path = Path(data_path)  # Direct path to CSV file
         self.batch_size = batch_size
         self.max_length = max_length
         self.num_workers = num_workers
@@ -252,32 +252,21 @@ class EmotionDataModule(pl.LightningDataModule):
         self.tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
         special_tokens = ['[ANGER]', '[FEAR]', '[JOY]', '[SADNESS]', '[SURPRISE]']
         self.tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
-        
-        # Update paths to use combined dataset
-        self.train_file = self.data_dir / 'combined/train.csv'
-        self.val_file = self.data_dir / 'combined/dev.csv'
-        
+    
     def setup(self, stage: Optional[str] = None):
         """Load and prepare data for given stage"""
         if stage == 'fit' or stage is None:
-            # Create train dataset
-            self.train_dataset = EmotionDataset(
-                self.train_file,
-                self.tokenizer,
-                max_length=self.max_length,
-                augment=True  # Enable augmentation for training
-            )
-            
-            # Create validation dataset
+            # Create dataset directly from the CSV file
             self.val_dataset = EmotionDataset(
-                self.val_file,
+                self.data_path,
                 self.tokenizer,
                 max_length=self.max_length,
-                augment=False  # No augmentation for validation
+                augment=False
             )
+            # For evaluation, we'll use the same dataset for both train and val
+            self.train_dataset = self.val_dataset
             
-            logging.info(f"Loaded {len(self.train_dataset)} training samples")
-            logging.info(f"Loaded {len(self.val_dataset)} validation samples")
+            logging.info(f"Loaded {len(self.val_dataset)} evaluation samples")
 
     def train_dataloader(self) -> DataLoader:
         return self._create_dataloader(self.train_dataset, shuffle=True)

@@ -23,18 +23,20 @@ def evaluate(args):
     # Add Tensor Core optimization
     torch.set_float32_matmul_precision('high')
     
-    # Create results directory
-    results_dir = Path('results')
-    results_dir.mkdir(exist_ok=True)
+    # Create results directory with timestamp
+    results_dir = Path('results/evaluation')
+    results_dir.mkdir(parents=True, exist_ok=True)
+    
+    print(f"\nResults will be saved to: {results_dir}")
     
     # Load model and move to GPU
     model = EmotionClassifier.load_from_checkpoint(args.checkpoint_path)
     model = model.to('cuda' if torch.cuda.is_available() else 'cpu')
     model.eval()
     
-    # Initialize data module
+    # Initialize data module with direct file path
     data_module = EmotionDataModule(
-        data_dir=args.data_dir,
+        data_path=args.data_path,  # Direct path to evaluation CSV
         batch_size=args.batch_size,
         max_length=args.max_length,
         num_workers=args.num_workers
@@ -79,14 +81,43 @@ def evaluate(args):
     )
     print(report)
     
-    # Save outputs
-    if args.plot_confusion:
-        confusion_matrix_path = results_dir / 'confusion_matrix.png'
-        plot_confusion_matrix(true_labels, predictions, emotion_labels, confusion_matrix_path)
+    # Save predictions with more details
+    predictions_path = results_dir / args.output_file
+    detailed_predictions_path = results_dir / f"detailed_{args.output_file}"
+    confusion_matrix_path = results_dir / 'confusion_matrix.png'
+    metrics_path = results_dir / 'evaluation_metrics.txt'
     
+    # Save basic predictions
     if args.output_predictions:
-        predictions_path = results_dir / args.output_file
         save_predictions(predictions, true_labels, emotion_labels, predictions_path)
+        print(f"\nPredictions saved to: {predictions_path}")
+    
+    # Save detailed predictions with text
+    if args.output_predictions:
+        save_detailed_predictions(
+            predictions, 
+            true_labels,
+            data_module.val_dataset.data['text'].values,  # Add text column
+            emotion_labels, 
+            detailed_predictions_path
+        )
+        print(f"Detailed predictions saved to: {detailed_predictions_path}")
+    
+    # Save confusion matrices
+    if args.plot_confusion:
+        plot_confusion_matrix(true_labels, predictions, emotion_labels, confusion_matrix_path)
+        print(f"Confusion matrices saved to: {confusion_matrix_path}")
+    
+    # Save metrics report
+    report = classification_report(
+        true_labels, 
+        predictions, 
+        target_names=emotion_labels,
+        zero_division=0
+    )
+    with open(metrics_path, 'w') as f:
+        f.write(report)
+    print(f"Evaluation metrics saved to: {metrics_path}")
     
     return results
 
@@ -121,12 +152,31 @@ def save_predictions(predictions, true_labels, emotion_labels, output_file):
     results_df.to_csv(output_file, index=False)
     print(f"\nPredictions saved to {output_file}")
 
+def save_detailed_predictions(predictions, true_labels, texts, emotion_labels, output_file):
+    """Save detailed predictions including text and probabilities."""
+    results_df = pd.DataFrame({
+        'text': texts,
+        **{f'pred_{emotion}': predictions[:, i] for i, emotion in enumerate(emotion_labels)},
+        **{f'true_{emotion}': true_labels[:, i] for i, emotion in enumerate(emotion_labels)}
+    })
+    
+    # Add summary columns
+    results_df['predicted_emotions'] = results_df[[f'pred_{e}' for e in emotion_labels]].apply(
+        lambda x: ', '.join([e for e, p in zip(emotion_labels, x) if p]), axis=1
+    )
+    results_df['true_emotions'] = results_df[[f'true_{e}' for e in emotion_labels]].apply(
+        lambda x: ', '.join([e for e, p in zip(emotion_labels, x) if p]), axis=1
+    )
+    results_df['correct'] = results_df['predicted_emotions'] == results_df['true_emotions']
+    
+    results_df.to_csv(output_file, index=False)
+
 def main():
     parser = argparse.ArgumentParser()
     
-    # Data and model arguments
-    parser.add_argument('--data_dir', type=str, default='data')
-    parser.add_argument('--checkpoint_path', type=str, required=True)
+    # Changed data_dir to data_path
+    parser.add_argument('--data_path', type=str, required=True, help='Path to evaluation CSV file')
+    parser.add_argument('--checkpoint_path', type=str, required=True, help='Path to model checkpoint')
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--max_length', type=int, default=128)
     parser.add_argument('--num_workers', type=int, default=4)
