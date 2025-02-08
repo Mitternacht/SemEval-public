@@ -1,12 +1,186 @@
-              precision    recall  f1-score   support
 
-       anger       0.95      0.92      0.94      1271
-        fear       0.96      0.96      0.96      1374
-         joy       0.94      0.92      0.93      1287
-     sadness       0.93      0.93      0.93      1387
-    surprise       0.95      0.95      0.95      1316
+PER-EMOTION METRICS
+==================
 
-   micro avg       0.95      0.94      0.94      6635
-   macro avg       0.95      0.94      0.94      6635
-weighted avg       0.95      0.94      0.94      6635
- samples avg       0.91      0.91      0.91      6635
+ANGER:
+  precision: 0.9476
+  recall: 0.9245
+  f1: 0.9359
+  support: 1271.0
+
+FEAR:
+  precision: 0.9566
+  recall: 0.9636
+  f1: 0.9601
+  support: 1374.0
+
+JOY:
+  precision: 0.9422
+  recall: 0.9239
+  f1: 0.9329
+  support: 1287.0
+
+SADNESS:
+  precision: 0.9303
+  recall: 0.9337
+  f1: 0.9320
+  support: 1387.0
+
+SURPRISE:
+  precision: 0.9506
+  recall: 0.9498
+  f1: 0.9502
+  support: 1316.0
+
+SAMPLE-BASED METRICS
+===================
+precision: 0.9319
+recall: 0.9328
+f1: 0.9303
+
+MACRO AVERAGES
+==============
+precision: 0.9455
+recall: 0.9391
+f1: 0.9422
+
+Jaccard Similarity: 0.9262
+
+
+DISCREPANCY ANALYSIS
+===================
+
+Total samples: 5786
+Samples with mismatches: 502 (8.7%)
+
+Most common missing emotions:
+  joy: 98 times
+  anger: 96 times
+  sadness: 92 times
+  surprise: 66 times
+  fear: 50 times
+
+Most common extra emotions:
+  sadness: 97 times
+  joy: 73 times
+  anger: 65 times
+  surprise: 65 times
+  fear: 60 times
+
+Most common confusion pairs (true → predicted):
+  anger → sadness: 29 times
+  sadness → anger: 21 times
+  joy → sadness: 20 times
+  joy → surprise: 19 times
+  anger → joy: 15 times
+  sadness → fear: 15 times
+  sadness → joy: 14 times
+  surprise → sadness: 12 times
+  joy → anger: 12 times
+  surprise → joy: 11 times
+  fear → surprise: 11 times
+  joy → fear: 10 times
+  anger → surprise: 9 times
+  fear → anger: 9 times
+  fear → sadness: 9 times
+  anger → fear: 8 times
+  surprise → fear: 7 times
+  sadness → surprise: 7 times
+  fear → joy: 5 times
+  surprise → anger: 5 times
+
+Detailed examples of mismatches:
+
+Example 1:
+Text: I just never felt like a boy. I hate my body and I just feel like I can't express myself for who I am.
+True emotions: {'anger'}
+Predicted emotions: {'sadness'}
+Missing emotions: {'anger'}
+Extra emotions: {'sadness'}
+
+Example 2:
+Text: like wood. be Could wrong.
+True emotions: {'surprise'}
+Predicted emotions: {'fear'}
+Missing emotions: {'surprise'}
+Extra emotions: {'fear'}
+
+Example 3:
+Text: What a waste of money and time
+True emotions: {'anger', 'sadness'}
+Predicted emotions: {'anger'}
+Missing emotions: {'sadness'}
+Extra emotions: set()
+
+Example 4:
+Text: You win , I’m so wrong to think that anyone would take advantage
+True emotions: {'surprise'}
+Predicted emotions: {'sadness'}
+Missing emotions: {'surprise'}
+Extra emotions: {'sadness'}
+
+Example 5:
+Text: i am so connected with families that are not my own and i love them so much and so i feel blessed to find a family to be connected with on so many different levels
+True emotions: {'joy'}
+Predicted emotions: set()
+Missing emotions: {'joy'}
+Extra emotions: set()
+
+Example 6:
+Text: This is pretty tame.
+True emotions: {'joy'}
+Predicted emotions: set()
+Missing emotions: {'joy'}
+Extra emotions: set()
+
+Example 7:
+Text: Just an employee, just stressed that it takes so long to save 10k for example and even that is nothing ! Should of brought more bitcoins
+True emotions: {'sadness'}
+Predicted emotions: {'anger'}
+Missing emotions: {'sadness'}
+Extra emotions: {'anger'}
+
+Example 8:
+Text: >a fun activity!!! At no point in my TBM life would I have found that fun or worthy of even one exclamation.
+True emotions: {'joy'}
+Predicted emotions: {'surprise'}
+Missing emotions: {'joy'}
+Extra emotions: {'surprise'}
+
+Example 9:
+Text: you do do?
+True emotions: {'anger', 'fear', 'surprise'}
+Predicted emotions: {'fear', 'surprise'}
+Missing emotions: {'anger'}
+Extra emotions: set()
+
+Example 10:
+Text: My with history in school is we learned about American history every year, which meant we learned a lot of same the stuff over and over.
+True emotions: {'anger'}
+Predicted emotions: {'joy'}
+Missing emotions: {'anger'}
+Extra emotions: {'joy'}
+
+
+DETAILED MULTI-LABEL ANALYSIS
+===========================
+
+Total samples: 5786
+Total emotion labels: 6635.0
+Average emotions per text: 1.15
+
+Emotion distribution per text:
+Texts with 1 emotion(s): 4852 (83.9%)
+Texts with 2 emotion(s): 588 (10.2%)
+Texts with 3 emotion(s): 154 (2.7%)
+Texts with 4 emotion(s): 35 (0.6%)
+Texts with 5 emotion(s): 1 (0.0%)
+
+Perfect matches: 5284/5786 (91.32%)
+
+Per-emotion accuracy:
+anger: 97.22%
+fear: 98.10%
+joy: 97.04%
+sadness: 96.73%
+surprise: 97.74%

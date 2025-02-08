@@ -1,12 +1,174 @@
-              precision    recall  f1-score   support
 
-       anger       0.99      0.99      0.99       333
-        fear       0.99      1.00      0.99      1611
-         joy       0.99      0.98      0.98       674
-     sadness       0.99      0.99      0.99       878
-    surprise       0.99      1.00      0.99       839
+PER-EMOTION METRICS
+==================
 
-   micro avg       0.99      0.99      0.99      4335
-   macro avg       0.99      0.99      0.99      4335
-weighted avg       0.99      0.99      0.99      4335
- samples avg       0.90      0.90      0.90      4335
+ANGER:
+  precision: 0.9880
+  recall: 0.9880
+  f1: 0.9880
+  support: 333.0
+
+FEAR:
+  precision: 0.9889
+  recall: 0.9975
+  f1: 0.9932
+  support: 1611.0
+
+JOY:
+  precision: 0.9925
+  recall: 0.9763
+  f1: 0.9843
+  support: 674.0
+
+SADNESS:
+  precision: 0.9909
+  recall: 0.9909
+  f1: 0.9909
+  support: 878.0
+
+SURPRISE:
+  precision: 0.9859
+  recall: 0.9976
+  f1: 0.9917
+  support: 839.0
+
+SAMPLE-BASED METRICS
+===================
+precision: 0.9843
+recall: 0.9848
+f1: 0.9839
+
+MACRO AVERAGES
+==============
+precision: 0.9892
+recall: 0.9901
+f1: 0.9896
+
+Jaccard Similarity: 0.9826
+
+
+DISCREPANCY ANALYSIS
+===================
+
+Total samples: 2768
+Samples with mismatches: 59 (2.1%)
+
+Most common missing emotions:
+  joy: 16 times
+  sadness: 8 times
+  fear: 4 times
+  anger: 4 times
+  surprise: 2 times
+
+Most common extra emotions:
+  fear: 18 times
+  surprise: 12 times
+  sadness: 8 times
+  joy: 5 times
+  anger: 4 times
+
+Most common confusion pairs (true → predicted):
+  joy → surprise: 5 times
+  joy → fear: 5 times
+  anger → fear: 1 times
+  joy → anger: 1 times
+  sadness → surprise: 1 times
+  fear → surprise: 1 times
+  joy → sadness: 1 times
+  sadness → anger: 1 times
+
+Detailed examples of mismatches:
+
+Example 1:
+Text: Not a single soul.
+True emotions: {'sadness', 'surprise', 'fear'}
+Predicted emotions: {'surprise', 'sadness'}
+Missing emotions: {'fear'}
+Extra emotions: set()
+
+Example 2:
+Text: My pride hurt worse than my leg did.
+True emotions: {'anger', 'sadness'}
+Predicted emotions: {'sadness', 'fear'}
+Missing emotions: {'anger'}
+Extra emotions: {'fear'}
+
+Example 3:
+Text: On Sunday I tucked the new license plates under my arm and headed out to the garage to find the duck tool.
+True emotions: set()
+Predicted emotions: {'joy'}
+Missing emotions: set()
+Extra emotions: {'joy'}
+
+Example 4:
+Text: They are so pillowy that when I get in the car, while she cheers at me, she actually lifts her fat pillow, let me sit next to her, and then drops her huge mountain of fat on my thigh.
+True emotions: set()
+Predicted emotions: {'joy'}
+Missing emotions: set()
+Extra emotions: {'joy'}
+
+Example 5:
+Text: in the back of my head, i was like great.
+True emotions: set()
+Predicted emotions: {'sadness', 'fear'}
+Missing emotions: set()
+Extra emotions: {'sadness', 'fear'}
+
+Example 6:
+Text: Grandma leaned forward, let out a sigh of relief and died.
+True emotions: {'sadness', 'surprise', 'fear'}
+Predicted emotions: {'sadness'}
+Missing emotions: {'surprise', 'fear'}
+Extra emotions: set()
+
+Example 7:
+Text: You can move it.
+True emotions: set()
+Predicted emotions: {'joy'}
+Missing emotions: set()
+Extra emotions: {'joy'}
+
+Example 8:
+Text: We send holiday wishes and we have invitations to dinner if ever in the same city (never taken up)  I could have gotten impatient and angry about the mix ups but a little patience and common courtesy has turned him into a friend.
+True emotions: {'joy'}
+Predicted emotions: {'anger'}
+Missing emotions: {'joy'}
+Extra emotions: {'anger'}
+
+Example 9:
+Text: I think I watched the last 20 laps holding my breath, and the last ten with my hands over my eyes.
+True emotions: {'fear'}
+Predicted emotions: set()
+Missing emotions: {'fear'}
+Extra emotions: set()
+
+Example 10:
+Text: My heart sank.
+True emotions: {'sadness'}
+Predicted emotions: {'sadness', 'fear'}
+Missing emotions: set()
+Extra emotions: {'fear'}
+
+
+DETAILED MULTI-LABEL ANALYSIS
+===========================
+
+Total samples: 2768
+Total emotion labels: 4335.0
+Average emotions per text: 1.57
+
+Emotion distribution per text:
+Texts with 1 emotion(s): 1141 (41.2%)
+Texts with 2 emotion(s): 1031 (37.2%)
+Texts with 3 emotion(s): 298 (10.8%)
+Texts with 4 emotion(s): 57 (2.1%)
+Texts with 5 emotion(s): 2 (0.1%)
+
+Perfect matches: 2709/2768 (97.87%)
+
+Per-emotion accuracy:
+anger: 99.71%
+fear: 99.21%
+joy: 99.24%
+sadness: 99.42%
+surprise: 99.49%

@@ -1,12 +1,93 @@
-              precision    recall  f1-score   support
 
-       anger       1.00      1.00      1.00        16
-        fear       1.00      0.98      0.99        63
-         joy       1.00      1.00      1.00        31
-     sadness       1.00      1.00      1.00        35
-    surprise       1.00      1.00      1.00        31
+PER-EMOTION METRICS
+==================
 
-   micro avg       1.00      0.99      1.00       176
-   macro avg       1.00      1.00      1.00       176
-weighted avg       1.00      0.99      1.00       176
- samples avg       0.89      0.88      0.89       176
+ANGER:
+  precision: 1.0000
+  recall: 1.0000
+  f1: 1.0000
+  support: 16.0
+
+FEAR:
+  precision: 1.0000
+  recall: 0.9841
+  f1: 0.9920
+  support: 63.0
+
+JOY:
+  precision: 1.0000
+  recall: 1.0000
+  f1: 1.0000
+  support: 31.0
+
+SADNESS:
+  precision: 1.0000
+  recall: 1.0000
+  f1: 1.0000
+  support: 35.0
+
+SURPRISE:
+  precision: 1.0000
+  recall: 1.0000
+  f1: 1.0000
+  support: 31.0
+
+SAMPLE-BASED METRICS
+===================
+precision: 1.0000
+recall: 0.9957
+f1: 0.9971
+
+MACRO AVERAGES
+==============
+precision: 1.0000
+recall: 0.9968
+f1: 0.9984
+
+Jaccard Similarity: 0.9957
+
+
+DISCREPANCY ANALYSIS
+===================
+
+Total samples: 116
+Samples with mismatches: 1 (0.9%)
+
+Most common missing emotions:
+  fear: 1 times
+
+Most common extra emotions:
+
+Most common confusion pairs (true → predicted):
+
+Detailed examples of mismatches:
+
+Example 1:
+Text: My heart sank.
+True emotions: {'sadness', 'fear'}
+Predicted emotions: {'sadness'}
+Missing emotions: {'fear'}
+Extra emotions: set()
+
+
+DETAILED MULTI-LABEL ANALYSIS
+===========================
+
+Total samples: 116
+Total emotion labels: 176.0
+Average emotions per text: 1.52
+
+Emotion distribution per text:
+Texts with 1 emotion(s): 46 (39.7%)
+Texts with 2 emotion(s): 42 (36.2%)
+Texts with 3 emotion(s): 14 (12.1%)
+Texts with 4 emotion(s): 1 (0.9%)
+
+Perfect matches: 115/116 (99.14%)
+
+Per-emotion accuracy:
+anger: 100.00%
+fear: 99.14%
+joy: 100.00%
+sadness: 100.00%
+surprise: 100.00%
