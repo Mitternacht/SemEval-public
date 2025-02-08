@@ -1,0 +1,117 @@
+text,pred_anger,pred_fear,pred_joy,pred_sadness,pred_surprise,true_anger,true_fear,true_joy,true_sadness,true_surprise,predicted_emotions,true_emotions,correct
+Older sister (23 at the time) is a Scumbag Stacy.,True,False,False,False,False,1.0,0.0,0.0,0.0,0.0,anger,anger,True
+"And I laughed like this: garhahagar, because my mouth was full of cotton and shit to bite down on and sharp objects and drills.",False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+It overflowed and brown shitty diarrhea water came flooding under the stall wall into my wife's stall.,True,True,False,True,True,1.0,1.0,0.0,1.0,1.0,"anger, fear, sadness, surprise","anger, fear, sadness, surprise",True
+Its very dark and foggy.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"Then she tried to, like, have sex with/strangle everyone.",True,True,False,False,True,1.0,1.0,0.0,0.0,1.0,"anger, fear, surprise","anger, fear, surprise",True
+<< < using my brain?,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"I said the first thing that came into my head, ` Ciao.",False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+"My mouth fell open `` No, no, no... I..",False,True,False,True,True,0.0,1.0,0.0,1.0,1.0,"fear, sadness, surprise","fear, sadness, surprise",True
+"End of story, right?",False,False,False,False,True,0.0,0.0,0.0,0.0,1.0,surprise,surprise,True
+We're still together.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+; ) In the evening we did go down and put our feet in the water-I got to about my waist actually.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+After that first big experience I started doing some research because I was so confused.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+... but Raul never called.,True,False,False,True,True,1.0,0.0,0.0,1.0,1.0,"anger, sadness, surprise","anger, sadness, surprise",True
+"It takes them 6 guys, all firefighters mind, and one old schoolteacher, to lift this oak dresser off Meridian.",False,False,False,False,True,0.0,0.0,0.0,0.0,1.0,surprise,surprise,True
+In between my toes.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+"I have a floor shift in the morning, hopefully without my nose being stuffy.",False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"I was born without the compassion chromosome, or I could have been born with two hearts, neither one agreeing where my brain should spend it's time.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+"I can't move, my hand is stuck, I'm making weird noises and my mom is screaming.",False,True,False,True,True,0.0,1.0,0.0,1.0,1.0,"fear, sadness, surprise","fear, sadness, surprise",True
+") I started to teach myself Japanese, and just couldn't shake the feeling that I was supposed to live there.",False,True,True,False,True,0.0,1.0,1.0,0.0,1.0,"fear, joy, surprise","fear, joy, surprise",True
+"""  I'm like ""sure.",False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+can't wait to be in another wedding!,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+I would go over to his house where his Grandmother and mom and dad lived to play SSX Tricky and eat Pokemon fruit rollups.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+Actually what's going on in my head is a lot of congestion.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+"Oh, and I noticed an odd effect from eating ripe honeydew melon; this raspy, raw feeling in my chest, like a cold was coming on.",False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+I looked at my wrist.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+"I went at it twice, until the muscles around my mouth hurt and my innards almost came out together.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+My stomach was hurting.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+This is so odd.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"Just getting out of the house put a smile on my face, that and the fact that she had some wicked old music on her iPod.",False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+Block Island holds a very special place in my heart.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+I was brought by to reality when noona hit my arm lightly.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"I can't breathe right, my head has been stuffed up for THREE MONTHS, I have whacked out dreams, can't sleep, I'm just... I'm... I feel like I'm breaking.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+"Anyway, I finished up and went back inside and decided to brush my teeth and straighten my shirttail, which had gotten twisted while sitting on the floor of the hall reading for two hours.",False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+"I cried my eyes out, longing for the days just a mere 10 1/2 months or so ago when I called this `` home '' and knew that I had a safe haven to rest my head.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+"Wow, that is really interesting.",False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+"&gt;Me: ""Wait, really?",False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+The entire summer is going to pass by with a blink of my eye because I've got so much going on!,False,True,True,False,False,0.0,1.0,1.0,0.0,0.0,"fear, joy","fear, joy",True
+My nose is currently upset.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+After standing in a few times in the past his buddy asks again but warns him that it is the full moon and it won't be like the last times.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"Swarms of people wandering around confused and unaware of where they're going, cutting people short as they wander into Burger King and other such stores on the other side of the corridor-completely unaware of the fact that they literally almost made me drop everything I'm carrying and fall flat on my face.",True,True,False,False,True,1.0,1.0,0.0,0.0,1.0,"anger, fear, surprise","anger, fear, surprise",True
+Her nose was broken.,False,True,False,True,True,0.0,1.0,0.0,1.0,1.0,"fear, sadness, surprise","fear, sadness, surprise",True
+My heart sank.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+I accidentally drop him.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+"One screamed out that it was screwed up, to which another replied ""TO THE MAX!",False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+""" And burst into tears.",False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+I tried to be an easy going bride.,False,True,True,False,False,0.0,1.0,1.0,0.0,0.0,"fear, joy","fear, joy",True
+Welcome to the month from passive aggressive hell.,True,True,False,True,False,1.0,1.0,0.0,1.0,0.0,"anger, fear, sadness","anger, fear, sadness",True
+"When mom inquires what ""the truth"" is, Lisa just says that ""you will know eventually"", and she says that once she learned of ""the truth"", then ""everything became wonderful"".",False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+Clint and I went up and down with that weight for at least three or four reps after I thought my legs were shot.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"""ARcH stop your progression.",False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"Was not happy with the waking up, but was awake because my hands were on fire.",True,True,False,True,False,1.0,1.0,0.0,1.0,0.0,"anger, fear, sadness","anger, fear, sadness",True
+It was rather insulting.,True,False,False,False,False,1.0,0.0,0.0,0.0,0.0,anger,anger,True
+The way I was positioned with the air moving made it hard to not breath through my mouth.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+I got close enough to feel some of the spray from the falls landing on my lips and glasses.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+There was also the sensation of something at my back at this point like a crustacean that I had to ask to leave.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"""I don't have time to arrest drunk drivers because of all the murders, rapes, and robberies we have to deal with.",True,True,False,True,False,1.0,1.0,0.0,1.0,0.0,"anger, fear, sadness","anger, fear, sadness",True
+"We had obviously done this before, but this time something was different.",False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+My sister was walking backwards and bumped her back into the wall so the second shelf or whatever that was placed on top of the knobs in the middle fell on my feet.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+I noticed this months after moving in and doing all of my basic routines in my room naked.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"Not hardcore accidental racism, but it fits.",True,True,False,True,False,1.0,1.0,0.0,1.0,0.0,"anger, fear, sadness","anger, fear, sadness",True
+They were coal black.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+This was fairly recently...,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+"The doors were getting ready to close, and she wasn't in yet, so I wedged my foot in the bottom of the door to hold it open for her.",False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+"But after blinking my eyes for a few times lepas tu tampar-tampar muka sikit, memang sah la yang penghantar itu Hanis Zalikha.",False,False,False,False,True,0.0,0.0,0.0,0.0,1.0,surprise,surprise,True
+"This 'star', starts to move across the sky.",False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+"I know not why, I wipe my face.",False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+Slowly rising to my feet I came to the conclusion that sometimes being alone meant surviving for myself.,False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+The police were called.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"( you see, i have these afi patches that i bought in 2004 and i had no where to put them ) yesterday i bought this neato bag and i said to my brain '' i can put my patches on this here bag. ''",False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+My friend and I were walking home from school as per usual as we lived close to each other and this was the normal routine.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+I feel like I am in over my head... Like Quicksand.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+We moved to a Labor and Delivery Room and I labored mostly on my hands and knees.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"Ok, so my pet alligator's tank is directly across from my pillow... the second I opened my eyes this morning at 6 am, the absolute first thing I see is my alligator in the CORNER of his tank staring directly at me.",False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+"I leaned forward in my seat, pearing though the small portion of the windshield that was clear enough to look out and see a wall of white reflecting my lights back in my face.",False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+It's so stressful but I'd never wanna be with anyone else and I'd marry her this minute if the financial made sense.,False,True,True,True,False,0.0,1.0,1.0,1.0,0.0,"fear, joy, sadness","fear, joy, sadness",True
+I was beyond furious.,True,False,False,False,False,1.0,0.0,0.0,0.0,0.0,anger,anger,True
+A deep thud sound in the room and a grin spread across my face.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+The best part however was when she jumped into the pictures and pushed the dog into my hands.,False,False,True,False,True,0.0,0.0,1.0,0.0,1.0,"joy, surprise","joy, surprise",True
+& # x 26; nbsp; What I did was cut the top off of a plastic gallon milk carton leaving the handle then by standing next to body of water or sometimes partially in it I could get a good dowseing dipping the carton into the water and then dumping it over my head.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+I remember the sweat burning in my eyes and trying to control my breathing.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+"The feeling has started to come back to my eye, but I still cant raise my lip and actually inspect the damage.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+You can barely make out your daughter's pale form in the darkness of your room.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+Just look at them once and that's it whispered my wife in my ears.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+"About ten years ago, he passed away from a severe brain tumor.",False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+"Victim-less, non-violent crimes shouldn't be handled so harshly.",True,False,False,False,False,1.0,0.0,0.0,0.0,0.0,anger,anger,True
+"Tears welled up in my eyes, but none fell out.",False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+"My legs felt sluggish, my calves were burning, my right foot was pinched, and I couldn't settle into my typical breathing pattern.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+Your sister is a heavy sleeper.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+My dad is a minister and part of his duties is visiting the sick and dying.,False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+It is stuck there in the back of my head with some other nasty stuff.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+Thankfully only a short ride to the hospital.,False,True,True,False,False,0.0,1.0,1.0,0.0,0.0,"fear, joy","fear, joy",True
+"Aargh, the look of frenzy must have been written all over my face as I tried to corall the older kids and placate my little one with a granola bar because it was dinner time ye know.",True,True,False,False,False,1.0,1.0,0.0,0.0,0.0,"anger, fear","anger, fear",True
+"It has sat with me, back in the pit of my stomach since Sunday night.",False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+My heart.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+and my feet hurt.,False,True,False,False,False,0.0,1.0,0.0,0.0,0.0,fear,fear,True
+Just rip my heart out and stomp that sucker flat.,True,False,False,True,False,1.0,0.0,0.0,1.0,0.0,"anger, sadness","anger, sadness",True
+What is it about this winter that is making me literally sick to my stomach?,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+Always hiding my eyes welling up by yawning so it seemed like they were just tearing from that.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+THE BLACK EYED KIDS,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+"Longest, most awkward drive I've ever taken.",True,True,False,True,False,1.0,1.0,0.0,1.0,0.0,"anger, fear, sadness","anger, fear, sadness",True
+"I walk right over to the tv, stand face to face with it, and begin to point at the little number areas.",False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+I untie my bear bag and grab some food inside it.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+"I'm a highly skeptical, scientific person.",False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+I'm gonna absolutely ~~suck~~ be terrible during my first sexual experience ._.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+I wake up very easily to sounds so I'm not overly concerned.,False,True,True,False,False,0.0,1.0,1.0,0.0,0.0,"fear, joy","fear, joy",True
+I put my hand on its tail to pet it.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+I didn't see it through but what I did see when I lifted my head was my wife coming up the street.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+I had to chord with my thumb.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+He also worse black gloves and a black ski mask.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+and my brain can think up some pretty horrible ailments.,False,True,False,True,False,0.0,1.0,0.0,1.0,0.0,"fear, sadness","fear, sadness",True
+It was late and they were asleep.,False,False,False,False,False,0.0,0.0,0.0,0.0,0.0,,,True
+My heart was beating fast from excitement.,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True
+A fraying rope stretches down from the rafters.,False,True,False,False,True,0.0,1.0,0.0,0.0,1.0,"fear, surprise","fear, surprise",True
+so i cried my eyes out and did the drawing.,False,False,False,True,False,0.0,0.0,0.0,1.0,0.0,sadness,sadness,True
+Never been so close to a group ass-wooping in my life.,True,True,False,False,True,1.0,1.0,0.0,0.0,1.0,"anger, fear, surprise","anger, fear, surprise",True
+The song `` Poor Places '' is ironically seeping out of my speakers and into my ears: It's hot in the poor places tonight / I'm not going outside,False,False,True,False,False,0.0,0.0,1.0,0.0,0.0,joy,joy,True

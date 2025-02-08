@@ -1,0 +1,12 @@
+              precision    recall  f1-score   support
+
+       anger       0.00      0.00      0.00         0
+        fear       0.00      0.00      0.00         0
+         joy       0.00      0.00      0.00         0
+     sadness       0.00      0.00      0.00         0
+    surprise       0.00      0.00      0.00         0
+
+   micro avg       0.00      0.00      0.00         0
+   macro avg       0.00      0.00      0.00         0
+weighted avg       0.00      0.00      0.00         0
+ samples avg       0.00      0.00      0.00         0
