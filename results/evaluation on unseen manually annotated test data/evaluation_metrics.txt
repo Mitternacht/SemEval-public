@@ -1,0 +1,170 @@
+
+PER-EMOTION METRICS
+==================
+
+ANGER:
+  precision: 0.9000
+  recall: 0.9000
+  f1: 0.9000
+  support: 20.0
+
+FEAR:
+  precision: 0.9178
+  recall: 0.9571
+  f1: 0.9371
+  support: 70.0
+
+JOY:
+  precision: 0.9706
+  recall: 0.7857
+  f1: 0.8684
+  support: 42.0
+
+SADNESS:
+  precision: 0.8864
+  recall: 0.9512
+  f1: 0.9176
+  support: 41.0
+
+SURPRISE:
+  precision: 0.8974
+  recall: 0.8974
+  f1: 0.8974
+  support: 39.0
+
+SAMPLE-BASED METRICS
+===================
+precision: 0.9088
+recall: 0.8993
+f1: 0.8937
+
+MACRO AVERAGES
+==============
+precision: 0.9144
+recall: 0.8983
+f1: 0.9041
+
+Jaccard Similarity: 0.8691
+
+
+DISCREPANCY ANALYSIS
+===================
+
+Total samples: 149
+Samples with mismatches: 31 (20.8%)
+
+Most common missing emotions:
+  joy: 9 times
+  surprise: 4 times
+  fear: 3 times
+  anger: 2 times
+  sadness: 2 times
+
+Most common extra emotions:
+  fear: 6 times
+  sadness: 5 times
+  surprise: 4 times
+  anger: 2 times
+  joy: 1 times
+
+Most common confusion pairs (true → predicted):
+  joy → sadness: 2 times
+  surprise → sadness: 1 times
+  fear → joy: 1 times
+  joy → fear: 1 times
+  joy → anger: 1 times
+
+Detailed examples of mismatches:
+
+Example 1:
+Text: The image I have in my mind is this: a group of well-meaning vaguely sadistic folks digging a deep pit in my heart and mind that can only be filled with fear.
+True emotions: {'fear', 'sadness'}
+Predicted emotions: {'fear', 'anger', 'sadness'}
+Missing emotions: set()
+Extra emotions: {'anger'}
+
+Example 2:
+Text: The lock was a dial-lock.
+True emotions: {'surprise'}
+Predicted emotions: {'fear', 'surprise'}
+Missing emotions: set()
+Extra emotions: {'fear'}
+
+Example 3:
+Text: Then I felt a breath on the back of my neck.
+True emotions: {'fear', 'surprise'}
+Predicted emotions: {'fear'}
+Missing emotions: {'surprise'}
+Extra emotions: set()
+
+Example 4:
+Text: My heart dropped and I just replied `` No. ''
+True emotions: {'fear', 'surprise'}
+Predicted emotions: {'fear', 'sadness'}
+Missing emotions: {'surprise'}
+Extra emotions: {'sadness'}
+
+Example 5:
+Text: i used my hands to fan of the flame.
+True emotions: {'fear'}
+Predicted emotions: {'joy'}
+Missing emotions: {'fear'}
+Extra emotions: {'joy'}
+
+Example 6:
+Text: I took four steps forward and bowed to my knee for the audience.
+True emotions: {'joy'}
+Predicted emotions: set()
+Missing emotions: {'joy'}
+Extra emotions: set()
+
+Example 7:
+Text: Not a thing missing.
+True emotions: {'surprise'}
+Predicted emotions: {'fear', 'surprise', 'sadness'}
+Missing emotions: set()
+Extra emotions: {'fear', 'sadness'}
+
+Example 8:
+Text: She must never know.
+True emotions: {'fear', 'sadness'}
+Predicted emotions: {'fear', 'surprise', 'sadness'}
+Missing emotions: set()
+Extra emotions: {'surprise'}
+
+Example 9:
+Text: I immediately start get nervous and panic internally and wonder what the hell is going on.
+True emotions: {'fear', 'surprise'}
+Predicted emotions: {'fear'}
+Missing emotions: {'surprise'}
+Extra emotions: set()
+
+Example 10:
+Text: Security and I managed to get shots in and they ended up running their car into a tree. A chuckle slipped out of me of its own volition, and I clapped my hand over my mouth in chagrin.
+True emotions: {'joy', 'sadness'}
+Predicted emotions: {'sadness'}
+Missing emotions: {'joy'}
+Extra emotions: set()
+
+
+DETAILED MULTI-LABEL ANALYSIS
+===========================
+
+Total samples: 149
+Total emotion labels: 212.0
+Average emotions per text: 1.42
+
+Emotion distribution per text:
+Texts with 1 emotion(s): 69 (46.3%)
+Texts with 2 emotion(s): 59 (39.6%)
+Texts with 3 emotion(s): 7 (4.7%)
+Texts with 4 emotion(s): 1 (0.7%)
+
+Perfect matches: 118/149 (79.19%)
+
+Per-emotion accuracy:
+anger: 97.32%
+fear: 93.96%
+joy: 93.29%
+sadness: 95.30%
+surprise: 94.63%
