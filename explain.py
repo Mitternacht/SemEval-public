@@ -193,9 +193,7 @@ class EmotionExplainer:
         
         # Get tokens for visualization and clean them
         tokens = self.tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
-        tokens = [t for t in tokens if t not in ['<s>', '</s>', '<pad>']]
-        # Clean the Ġ character from tokens
-        tokens = [t.replace('Ġ', '') for t in tokens]
+        tokens = [t.replace('Ġ', '') for t in tokens]  # Clean the Ġ character from tokens
         
         # Create prediction function for SHAP
         def f(x):
@@ -209,7 +207,7 @@ class EmotionExplainer:
                 return torch.sigmoid(output).cpu().numpy()
         
         # Create background data
-        background_data = np.zeros((1, len(tokens)), dtype=np.int64)
+        background_data = np.zeros((1, inputs['input_ids'].shape[1]), dtype=np.int64)
         
         # Initialize SHAP explainer
         explainer = shap.KernelExplainer(
@@ -219,11 +217,25 @@ class EmotionExplainer:
         )
         
         # Generate SHAP values
-        input_data = inputs['input_ids'][0, :len(tokens)].cpu().numpy().astype(np.int64)
+        input_data = inputs['input_ids'][0].cpu().numpy().astype(np.int64)
         shap_values = explainer.shap_values(
             input_data,
             nsamples=100
         )
+        
+        # Debug print
+        print(f"Shape of SHAP values: {np.array(shap_values).shape if isinstance(shap_values, list) else shap_values.shape}")
+        print(f"Number of emotions: {len(self.emotion_labels)}")
+        
+        # Convert shap_values to list format if it's not already
+        if not isinstance(shap_values, list):
+            shap_values = [shap_values[i] for i in range(shap_values.shape[0])]
+        
+        # Ensure we have the right number of SHAP values
+        if len(shap_values) < len(self.emotion_labels):
+            # Pad with zeros if necessary
+            for _ in range(len(self.emotion_labels) - len(shap_values)):
+                shap_values.append(np.zeros_like(shap_values[0]))
         
         # Plot explanations for each emotion
         plt.figure(figsize=(20, 15))
@@ -231,9 +243,15 @@ class EmotionExplainer:
         # Get actual token-level SHAP values
         token_shap_values = []
         for emotion_idx in range(len(self.emotion_labels)):
-            # Reshape SHAP values to match token length
+            # Make sure shap_values[emotion_idx] matches the token length
             values = np.zeros(len(tokens))
-            values[:len(shap_values[emotion_idx])] = shap_values[emotion_idx]
+            try:
+                curr_values = shap_values[emotion_idx]
+                values[:len(curr_values)] = curr_values[:len(tokens)]
+            except Exception as e:
+                print(f"Warning: Error processing SHAP values for emotion {self.emotion_labels[emotion_idx]}: {e}")
+                # Use zeros if there's an error
+                values = np.zeros(len(tokens))
             token_shap_values.append(values)
         
         for idx, emotion in enumerate(self.emotion_labels):
