@@ -27,9 +27,9 @@ def train(args):
         default_hp_metric=False
     )
     
-    # Initialize data module
+    # Initialize data module with data_path instead of data_dir
     data_module = EmotionDataModule(
-        data_dir=args.data_dir,
+        data_path=f"{args.data_dir}/combined/train.csv",  # Construct path to training data
         batch_size=args.batch_size,
         max_length=args.max_length,
         num_workers=args.num_workers

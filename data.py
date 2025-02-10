@@ -256,17 +256,36 @@ class EmotionDataModule(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         """Load and prepare data for given stage"""
         if stage == 'fit' or stage is None:
-            # Create dataset directly from the CSV file
-            self.val_dataset = EmotionDataset(
-                self.data_path,
-                self.tokenizer,
-                max_length=self.max_length,
-                augment=False
-            )
-            # For evaluation, we'll use the same dataset for both train and val
-            self.train_dataset = self.val_dataset
-            
-            logging.info(f"Loaded {len(self.val_dataset)} evaluation samples")
+            # For training, we need both train and validation datasets
+            if 'train.csv' in str(self.data_path):
+                # When loading training data, also load validation data
+                self.train_dataset = EmotionDataset(
+                    self.data_path,  # train.csv
+                    self.tokenizer,
+                    max_length=self.max_length,
+                    augment=True  # Enable augmentation for training
+                )
+                
+                # Load validation dataset
+                val_path = Path(self.data_path).parent / 'dev.csv'
+                self.val_dataset = EmotionDataset(
+                    val_path,
+                    self.tokenizer,
+                    max_length=self.max_length,
+                    augment=False  # No augmentation for validation
+                )
+                
+                logging.info(f"Loaded {len(self.train_dataset)} training samples")
+                logging.info(f"Loaded {len(self.val_dataset)} validation samples")
+            else:
+                # For evaluation only, use the dataset as is
+                self.val_dataset = EmotionDataset(
+                    self.data_path,
+                    self.tokenizer,
+                    max_length=self.max_length,
+                    augment=False
+                )
+                logging.info(f"Loaded {len(self.val_dataset)} evaluation samples")
 
     def train_dataloader(self) -> DataLoader:
         return self._create_dataloader(self.train_dataset, shuffle=True)
