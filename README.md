@@ -124,7 +124,7 @@ python src/human_eval.py \
   - Per-emotion explanations
 - Human evaluation comparisons
 
-## Hardware Requirements
+## Hardware Configuration
 - NVIDIA GPU with CUDA support
 - 64GB RAM recommended
 - CUDA toolkit 11.8
