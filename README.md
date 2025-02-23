@@ -126,7 +126,7 @@ python src/human_eval.py \
 
 ## Hardware Configuration
 - NVIDIA GPU with CUDA support
-- 64GB RAM recommended
+- 32GB RAM recommended
 - CUDA toolkit 11.8
 - cuDNN 8.7
 
