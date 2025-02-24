@@ -193,9 +193,9 @@ class EmotionExplainer:
         
         # Get tokens for visualization and clean them
         tokens = self.tokenizer.convert_ids_to_tokens(inputs['input_ids'][0])
-        tokens = [t.replace('Ġ', '') for t in tokens]  # Clean the Ġ character from tokens
+        tokens = [t.replace('Ġ', '') for t in tokens]
         
-        # Create prediction function for SHAP
+        # Create prediction function for SHAP that returns values for all emotions
         def f(x):
             if isinstance(x, str):
                 x = [x]
@@ -204,95 +204,114 @@ class EmotionExplainer:
                 x_tensor = torch.tensor(x, dtype=torch.long, device=self.device)
                 attention_mask = torch.ones_like(x_tensor, dtype=torch.long)
                 output = self.model(x_tensor, attention_mask)
-                return torch.sigmoid(output).cpu().numpy()
+                # Return individual probabilities for each emotion
+                probs = torch.sigmoid(output).cpu().numpy()
+                return probs if len(probs.shape) == 2 else probs.reshape(1, -1)
         
-        # Create background data
-        background_data = np.zeros((1, inputs['input_ids'].shape[1]), dtype=np.int64)
+        # Create more diverse background data
+        n_background = 10
+        background_data = []
+        for _ in range(n_background):
+            random_ids = torch.randint(0, self.tokenizer.vocab_size, (1, inputs['input_ids'].shape[1]))
+            background_data.append(random_ids[0].numpy())
+        background_data = np.array(background_data)
         
-        # Initialize SHAP explainer
+        # Initialize SHAP explainer with more samples
         explainer = shap.KernelExplainer(
             f,
             background_data,
             link="identity"
         )
         
-        # Generate SHAP values
-        input_data = inputs['input_ids'][0].cpu().numpy().astype(np.int64)
-        shap_values = explainer.shap_values(
-            input_data,
-            nsamples=100
-        )
+        # Generate SHAP values with more samples
+        input_data = inputs['input_ids'][0].cpu().numpy()
+        try:
+            # Try to get SHAP values for all outputs at once
+            shap_values = explainer.shap_values(
+                input_data,
+                nsamples=500,
+                l1_reg="num_features(10)"
+            )
+            
+            # Print shape information for debugging
+            print(f"SHAP values type: {type(shap_values)}")
+            if isinstance(shap_values, list):
+                print(f"Number of SHAP value arrays: {len(shap_values)}")
+                print(f"Shape of first SHAP array: {shap_values[0].shape}")
+            else:
+                print(f"Shape of SHAP values: {shap_values.shape}")
+            
+        except Exception as e:
+            print(f"Error generating SHAP values: {e}")
+            # Fallback: generate SHAP values for each emotion separately
+            shap_values = []
+            for i in range(len(self.emotion_labels)):
+                emotion_explainer = shap.KernelExplainer(
+                    lambda x: f(x)[:, i],
+                    background_data
+                )
+                emotion_shap = emotion_explainer.shap_values(input_data, nsamples=100)
+                shap_values.append(emotion_shap)
         
-        # Debug print
-        print(f"Shape of SHAP values: {np.array(shap_values).shape if isinstance(shap_values, list) else shap_values.shape}")
-        print(f"Number of emotions: {len(self.emotion_labels)}")
-        
-        # Convert shap_values to list format if it's not already
+        # Ensure we have the right format
         if not isinstance(shap_values, list):
-            shap_values = [shap_values[i] for i in range(shap_values.shape[0])]
-        
-        # Ensure we have the right number of SHAP values
-        if len(shap_values) < len(self.emotion_labels):
-            # Pad with zeros if necessary
-            for _ in range(len(self.emotion_labels) - len(shap_values)):
-                shap_values.append(np.zeros_like(shap_values[0]))
+            shap_values = [shap_values[:, i] for i in range(shap_values.shape[1])]
         
         # Plot explanations for each emotion
         plt.figure(figsize=(20, 15))
         
-        # Get actual token-level SHAP values
-        token_shap_values = []
-        for emotion_idx in range(len(self.emotion_labels)):
-            # Make sure shap_values[emotion_idx] matches the token length
-            values = np.zeros(len(tokens))
-            try:
-                curr_values = shap_values[emotion_idx]
-                values[:len(curr_values)] = curr_values[:len(tokens)]
-            except Exception as e:
-                print(f"Warning: Error processing SHAP values for emotion {self.emotion_labels[emotion_idx]}: {e}")
-                # Use zeros if there's an error
-                values = np.zeros(len(tokens))
-            token_shap_values.append(values)
-        
         for idx, emotion in enumerate(self.emotion_labels):
             plt.subplot(3, 2, idx + 1)
             
-            # Get values for this emotion
-            values = token_shap_values[idx]
+            # Get values for this emotion and ensure it's 1D and the right length
+            values = np.array(shap_values[idx])
+            if len(values.shape) > 1:
+                values = values.mean(axis=0)  # Take mean if we have multiple samples
+            
+            # Ensure values matches the number of tokens
+            if len(values) > len(tokens):
+                values = values[:len(tokens)]
+            elif len(values) < len(tokens):
+                values = np.pad(values, (0, len(tokens) - len(values)))
+                
             x_positions = np.arange(len(tokens))
             
-            # Clear any existing ticks
-            plt.cla()
-            
             # Create bar plot
-            plt.bar(x_positions, values)
+            bars = plt.bar(x_positions, values)
             
-            # Set x-ticks and labels explicitly
-            ax = plt.gca()
-            ax.set_xticks(x_positions)
-            ax.set_xticklabels(tokens, rotation=45, ha='right')
+            # Color bars based on value
+            for bar, value in zip(bars, values):
+                if value > 0:
+                    bar.set_color('green')
+                else:
+                    bar.set_color('red')
             
+            # Set x-ticks and labels
+            plt.xticks(x_positions, tokens, rotation=45, ha='right')
             plt.title(f'SHAP Values for {emotion}')
             plt.grid(True, alpha=0.3)
             
             # Add value labels on top of bars
             for i, v in enumerate(values):
-                plt.text(i, v, f'{v:.2f}', ha='center', va='bottom' if v >= 0 else 'top')
+                plt.text(i, v, f'{v:.2f}', 
+                        ha='center', 
+                        va='bottom' if v >= 0 else 'top',
+                        fontsize=8)
         
         plt.tight_layout()
-        plt.savefig(f'{output_dir}/shap_explanation.png', bbox_inches='tight')
+        plt.savefig(f'{output_dir}/shap_explanation.png', bbox_inches='tight', dpi=300)
         plt.close()
         
-        # Get predictions
+        # Get predictions with no gradient computation
         with torch.no_grad():
             logits = self.model(inputs['input_ids'], inputs['attention_mask'])
-            probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).float()
+            probs = torch.sigmoid(logits).detach().cpu().numpy()
+            preds = (probs > 0.5).astype(np.float32)
         
         return {
             'shap_values': shap_values,
-            'probabilities': probs.cpu().numpy(),
-            'predictions': preds.cpu().numpy(),
+            'probabilities': probs,
+            'predictions': preds,
             'tokens': tokens
         }
 

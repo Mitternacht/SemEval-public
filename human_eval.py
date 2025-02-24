@@ -93,11 +93,14 @@ def collect_human_annotations(text_data: pd.DataFrame, output_file: str, annotat
     start_idx = 0
     
     # Check if this annotator has existing work
-    if annotation_file.exists():
-        existing_annotations = pd.read_csv(annotation_file)
-        annotations = existing_annotations.to_dict('records')
-        start_idx = len(annotations)
-        print(f"\nResuming annotations for Annotator {annotator_id} from text {start_idx + 1}")
+    if annotation_file.exists() and annotation_file.stat().st_size > 0:
+        try:
+            existing_annotations = pd.read_csv(annotation_file)
+            annotations = existing_annotations.to_dict('records')
+            start_idx = len(annotations)
+            print(f"\nResuming annotations for Annotator {annotator_id} from text {start_idx + 1}")
+        except pd.errors.EmptyDataError:
+            print(f"\nStarting new annotation set for Annotator {annotator_id}")
     else:
         print(f"\nStarting new annotation set for Annotator {annotator_id}")
     
